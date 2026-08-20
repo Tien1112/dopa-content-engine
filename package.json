@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "ci:fixture": "node scripts/create-ci-claude-zip.mjs work/ci-input.zip",
     "render:example": "npm run build && node dist/src/cli.js examples/static-design/manifest.json",
     "test": "npm run build && node --test dist/test/**/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -4,7 +4,7 @@ A deterministic production rendering layer for approved Claude Design exports. C
 
 ## Phase 1 status
 
-The current vertical slice supports one static `exact` PNG output. It performs a package preflight, blocks external network requests, waits for document fonts and images, captures through Chromium, and validates the resulting PNG dimensions, format, file size, and required resource state. Animation, POD, `contain`, and `cover` are specified as follow-on work and are not silently approximated.
+The current vertical slice supports static `exact` PNG output, including multi-page Claude Design exports where every approved canvas is a separate HTML element. It performs a package preflight, blocks external network requests, waits for document fonts and images, captures through Chromium, and validates every resulting PNG's dimensions, format, file size, and required resource state. Animation, POD, `contain`, and `cover` are specified as follow-on work and are not silently approximated.
 
 ## Requirements
 
@@ -31,6 +31,21 @@ The example writes `examples/static-design/renders/instagram_feed.png` and `qa-r
 dopa-render ./examples/static-design/manifest.json
 ```
 
+Prepare a downloaded Claude Design ZIP without executing files from the archive:
+
+```bash
+npm run build
+node dist/src/cli.js prepare-claude-zip "/path/to/design.zip" "/path/to/prepared-jobs" "brand-slug"
+```
+
+The adapter validates archive paths, selects the single self-contained bundled HTML export, inventories its approved canvases, and creates a bounded multi-page square job. If the ZIP contains approved 2:3 PNG compositions, it also creates a Pinterest job that proportionally reduces them to 1000×1500 without changing their aspect ratio. It reports absent 4:5 and 9:16 compositions instead of manufacturing or stretching them.
+
+## GitHub render proof
+
+`.github/workflows/render-qa.yml` runs the test suite in a clean Linux environment, installs the pinned Playwright Chromium build, renders the single- and multi-page proofs, checks every machine-readable QA result, and uploads PNGs plus contact sheets as the `render-qa-evidence` artifact. The committed CI fixture is generated at runtime and contains no Dopa production artwork.
+
+The real Dopa ZIP remains outside the repository unless its owner explicitly approves publishing those assets. Run the same prepare/render commands against that ZIP locally or in an approved private asset environment, then visually approve its contact sheets.
+
 ## Canonical input
 
 ```text
@@ -43,6 +58,21 @@ content-job/
 ```
 
 Paths must stay inside the package. The current renderer forbids remote HTTP(S) dependencies by default. Use `required_fonts` to turn font fidelity expectations into explicit checks.
+
+For an export containing multiple approved canvases, add a bounded page selector:
+
+```json
+{
+  "canvas": { "width": 1080, "height": 1080 },
+  "pages": {
+    "selector": "[data-document-role=page]",
+    "label_attribute": "data-label",
+    "maximum": 100
+  }
+}
+```
+
+The renderer captures each matched element separately and includes the normalized page label in its filename and QA record. Every matched element must have the declared canvas dimensions.
 
 ## Rendering contract
 

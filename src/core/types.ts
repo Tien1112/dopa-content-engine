@@ -2,6 +2,11 @@ export type RenderMode = "exact" | "contain" | "cover";
 export type OutputFormat = "png" | "mp4";
 
 export interface CanvasSize { width: number; height: number }
+export interface PageSelection {
+  selector: string;
+  label_attribute?: string;
+  maximum?: number;
+}
 export interface OutputRequest {
   preset: string;
   mode?: RenderMode;
@@ -15,6 +20,7 @@ export interface Manifest {
   version: number;
   source: string;
   canvas: CanvasSize;
+  pages?: PageSelection;
   animation?: boolean;
   transparent_background?: boolean;
   required_fonts?: string[];
@@ -32,6 +38,7 @@ export interface InspectionReport {
 }
 export interface OutputQa {
   preset: string;
+  page_label?: string;
   file: string;
   width?: number;
   height?: number;

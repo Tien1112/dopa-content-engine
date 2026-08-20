@@ -4,6 +4,7 @@ import type { OutputQa } from "./types.js";
 
 interface VerifyPngInput {
   preset: string;
+  pageLabel?: string;
   file: string;
   reportFile: string;
   expectedWidth: number;
@@ -25,6 +26,7 @@ export async function verifyPng(input: VerifyPngInput): Promise<OutputQa> {
   if (!input.assetsLoaded) errors.push("Required assets did not load");
   return {
     preset: input.preset,
+    ...(input.pageLabel ? { page_label: input.pageLabel } : {}),
     file: input.reportFile,
     ...metadata,
     bytes: fileStat.size,

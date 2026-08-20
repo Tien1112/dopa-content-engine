@@ -19,6 +19,13 @@ export async function loadManifest(manifestPath: string): Promise<Manifest> {
   if (!nonEmpty(v.source)) throw new Error("manifest.source is required");
   const canvas = v.canvas as Record<string, unknown> | undefined;
   if (!canvas || !Number.isInteger(canvas.width) || !Number.isInteger(canvas.height) || (canvas.width as number) < 1 || (canvas.height as number) < 1) throw new Error("manifest.canvas needs positive integer width and height");
+  if (v.pages !== undefined) {
+    if (!v.pages || typeof v.pages !== "object") throw new Error("manifest.pages must be an object");
+    const pages = v.pages as Record<string, unknown>;
+    if (!nonEmpty(pages.selector)) throw new Error("manifest.pages.selector is required");
+    if (pages.label_attribute !== undefined && (!nonEmpty(pages.label_attribute) || !/^[A-Za-z_:][A-Za-z0-9:_.-]*$/.test(pages.label_attribute))) throw new Error("manifest.pages.label_attribute must be a valid HTML attribute name");
+    if (pages.maximum !== undefined && (!Number.isInteger(pages.maximum) || (pages.maximum as number) < 1 || (pages.maximum as number) > 500)) throw new Error("manifest.pages.maximum must be an integer from 1 through 500");
+  }
   if (!Array.isArray(v.outputs) || v.outputs.length === 0) throw new Error("manifest.outputs must be a non-empty array");
   for (const output of v.outputs) {
     if (!output || typeof output !== "object" || !nonEmpty((output as Record<string, unknown>).preset)) throw new Error("Every output needs a preset");

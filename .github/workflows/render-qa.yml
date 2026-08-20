@@ -1,0 +1,72 @@
+name: Render QA
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Render the single-page proof
+        run: npm run render:example
+
+      - name: Build a safe Claude ZIP fixture
+        run: node scripts/create-ci-claude-zip.mjs work/ci-input.zip
+
+      - name: Prepare jobs from the ZIP
+        run: node dist/src/cli.js prepare-claude-zip work/ci-input.zip work/ci-jobs ci-fixture | tee work/ci-import-report.json
+
+      - name: Render all square pages
+        run: node dist/src/cli.js work/ci-jobs/square-source/manifest.json
+
+      - name: Render all Pinterest pages
+        run: node dist/src/cli.js work/ci-jobs/pinterest-source/manifest.json
+
+      - name: Verify multi-page QA reports
+        run: |
+          node scripts/assert-qa.mjs work/ci-jobs/square-source/renders/qa-report.json 3
+          node scripts/assert-qa.mjs work/ci-jobs/pinterest-source/renders/qa-report.json 3
+
+      - name: Create visual contact sheets
+        run: |
+          node scripts/create-contact-sheet.mjs work/ci-jobs/square-source/renders/qa-report.json
+          node scripts/create-contact-sheet.mjs work/ci-jobs/pinterest-source/renders/qa-report.json
+
+      - name: Upload render evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-qa-evidence
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            examples/static-design/renders/
+            work/ci-import-report.json
+            work/ci-jobs/*/renders/

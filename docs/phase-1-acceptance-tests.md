@@ -10,6 +10,8 @@
 6. A source/output dimension mismatch in `exact` mode fails instead of stretching.
 7. Traversal outside the package is rejected.
 8. A machine-readable `qa-report.json` is always written after rendering starts, including failures.
+9. A bounded multi-page export produces one exact PNG and one QA entry per uniquely labelled page.
+10. Missing, oversized, duplicate-labelled, or incorrectly sized page selections fail visibly.
 
 ## Remaining Phase 1 acceptance tests
 
