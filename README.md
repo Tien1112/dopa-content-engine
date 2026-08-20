@@ -46,6 +46,16 @@ The adapter validates archive paths, selects the single self-contained bundled H
 
 The real Dopa ZIP remains outside the repository unless its owner explicitly approves publishing those assets. Run the same prepare/render commands against that ZIP locally or in an approved private asset environment, then visually approve its contact sheets.
 
+## Approved eye-animation proof
+
+The eye-animation proof is a separate, input-specific milestone and does not change the static Phase 1 renderer. It validates the supplied Claude Design ZIP, verifies the approved `Eye Loop 3a` source contract, reproduces its vector motion deterministically, and exports exact-size MP4s plus a transparent WebM with machine-readable QA.
+
+```bash
+npm run proof:eye-animation -- "/path/to/Moving eye with eyelashes.zip" work/dopa-eye-animation-proof
+```
+
+The generated `index.html` is a self-contained review surface with playback and download links for the original 1080×900 canvas, Instagram/Facebook feed, story/reel, square, and Pinterest. The supplied artwork and generated media remain local and are not committed.
+
 ## Content planning foundation
 
 The channel-neutral planning contract lives outside the renderer in `src/publishing`. It creates drafts from QA-approved media, requires explicit approval, and routes each approved item through a future Tailwind, Meta, Google Business Profile, or Google Merchant adapter. No live publishing credentials or APIs are coupled to `src/core`. See [content planning and publishing](docs/content-planning.md) and the machine-readable [content-plan schema](schemas/content-plan.schema.json).
