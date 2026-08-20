@@ -40,9 +40,10 @@ export function detectHtmlPages(html: string): { count: number; width: number; h
   return { count, ...first };
 }
 
-export function readPngDimensions(buffer: Buffer): { width: number; height: number } {
-  if (buffer.length < 24 || !buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("Entry is not a valid PNG");
-  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+export function readPngDimensions(buffer: Buffer): { width: number; height: number; alpha: boolean } {
+  if (buffer.length < 26 || !buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("Entry is not a valid PNG");
+  const colorType = buffer[25]!;
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20), alpha: colorType === 4 || colorType === 6 };
 }
 
 export function detectFontFamilies(html: string): string[] {
@@ -86,7 +87,7 @@ export async function prepareClaudeDesignZip(zipInput: string, outputInput: stri
   const squareManifestPath = path.join(squareRoot, "manifest.json");
   await writeFile(squareManifestPath, `${JSON.stringify(squareManifest, null, 2)}\n`);
 
-  const rasterEntries: Array<{ entry: string; bytes: Buffer; width: number; height: number }> = [];
+  const rasterEntries: Array<{ entry: string; bytes: Buffer; width: number; height: number; alpha: boolean }> = [];
   for (const entry of entries.filter((item) => /^uploads\/[^/]+\.png$/i.test(item))) {
     const bytes = await unzip(["-p", zipPath, entry], true) as Buffer;
     const dimensions = readPngDimensions(bytes);
@@ -120,7 +121,7 @@ export async function prepareClaudeDesignZip(zipInput: string, outputInput: stri
       canvas: { width: 1000, height: 1500 },
       pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: rasterEntries.length },
       animation: false,
-      transparent_background: true,
+      transparent_background: rasterEntries.every((entry) => entry.alpha),
       outputs: [{ preset: "pinterest_standard", mode: "exact" }]
     };
     const pinterestManifestPath = path.join(pinterestRoot, "manifest.json");

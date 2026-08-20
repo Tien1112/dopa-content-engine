@@ -11,12 +11,13 @@ test("detects a uniform multi-page Claude canvas", () => {
   assert.deepEqual(detectHtmlPages(html), { count: 2, width: 1080, height: 1080 });
 });
 
-test("reads PNG dimensions without decoding untrusted image pixels", () => {
-  const bytes = Buffer.alloc(24);
+test("reads PNG dimensions and alpha without decoding untrusted image pixels", () => {
+  const bytes = Buffer.alloc(26);
   Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(bytes);
   bytes.writeUInt32BE(2000, 16);
   bytes.writeUInt32BE(3000, 20);
-  assert.deepEqual(readPngDimensions(bytes), { width: 2000, height: 3000 });
+  bytes[25] = 6;
+  assert.deepEqual(readPngDimensions(bytes), { width: 2000, height: 3000, alpha: true });
 });
 
 test("recognizes approved Pinterest 2:3 source dimensions", () => {
