@@ -1,0 +1,15 @@
+{
+  "$schema": "../../schemas/manifest.schema.json",
+  "schema_version": 1,
+  "content_id": "dopa-static-proof-001",
+  "brand": "dopa-dispatch",
+  "version": 1,
+  "source": "source/index.html",
+  "canvas": { "width": 1080, "height": 1350 },
+  "animation": false,
+  "transparent_background": false,
+  "required_fonts": ["Dopa Proof Sans"],
+  "outputs": [
+    { "preset": "instagram_feed", "mode": "exact" }
+  ]
+}
