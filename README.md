@@ -46,6 +46,10 @@ The adapter validates archive paths, selects the single self-contained bundled H
 
 The real Dopa ZIP remains outside the repository unless its owner explicitly approves publishing those assets. Run the same prepare/render commands against that ZIP locally or in an approved private asset environment, then visually approve its contact sheets.
 
+## Content planning foundation
+
+The channel-neutral planning contract lives outside the renderer in `src/publishing`. It creates drafts from QA-approved media, requires explicit approval, and routes each approved item through a future Tailwind, Meta, Google Business Profile, or Google Merchant adapter. No live publishing credentials or APIs are coupled to `src/core`. See [content planning and publishing](docs/content-planning.md) and the machine-readable [content-plan schema](schemas/content-plan.schema.json).
+
 ## Canonical input
 
 ```text

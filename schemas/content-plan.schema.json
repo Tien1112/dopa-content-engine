@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dopa.invalid/schemas/content-plan.schema.json",
+  "title": "Dopa approved content plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plan_id", "revision", "brand", "timezone", "status", "items"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "plan_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "brand": { "type": "string", "minLength": 1 },
+    "timezone": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["draft", "approved"] },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approved_by", "approved_at", "content_hash"],
+      "properties": {
+        "approved_by": { "type": "string", "minLength": 1 },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/item" }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "channel", "content_type", "account_ref", "publish_at", "media", "copy"],
+      "properties": {
+        "item_id": { "type": "string", "minLength": 1 },
+        "channel": { "enum": ["pinterest", "instagram", "facebook", "google_business_profile", "google_merchant"] },
+        "content_type": { "enum": ["pin", "feed_post", "carousel", "story", "reel", "update", "offer", "event", "promotion"] },
+        "account_ref": { "type": "string", "minLength": 1 },
+        "publish_at": { "type": "string", "format": "date-time" },
+        "media": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/media" }
+        },
+        "copy": { "$ref": "#/$defs/copy" }
+      }
+    },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "file", "mime_type", "width", "height", "qa"],
+      "properties": {
+        "asset_id": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1 },
+        "mime_type": { "enum": ["image/png", "image/jpeg", "video/mp4", "video/webm"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "qa": { "enum": ["passed", "failed"] }
+      }
+    },
+    "copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message"],
+      "properties": {
+        "message": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "hashtags": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "first_comment": { "type": "string" },
+        "alt_text": { "type": "string" },
+        "destination_url": { "type": "string", "format": "uri", "pattern": "^https?://" },
+        "call_to_action": { "type": "string" }
+      }
+    }
+  }
+}

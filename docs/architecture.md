@@ -18,6 +18,8 @@ manifest + packaged source
 
 `src/core` owns domain types, configuration, inspection, rendering orchestration, and QA. Browser-specific work lives behind the Playwright renderer. Future FFmpeg animation capture, object storage, Claude MCP, and publishing integrations should be separate adapters that consume the same manifest and result contracts.
 
+Content planning lives in `src/publishing`, outside `src/core`. It accepts only assets that passed render QA, requires an explicit plan approval, and routes approved items through channel-specific publisher adapters. Tailwind, Meta, Google Business Profile, and Google Merchant credentials and APIs remain behind those adapters; they never enter the rendering core or a serialized content plan. See [content planning and publishing](content-planning.md).
+
 Claude Design ZIP handling lives in `src/adapters`, outside the rendering core. The adapter lists and validates archive paths before reading selected entries, prefers the self-contained bundled export, and converts approved 2:3 raster compositions into a local deterministic Pinterest job. It never treats unrelated uploads or screenshots as render pages merely because they are present in the ZIP.
 
 Presets live in `config/output-presets.json`. Brand and product profiles will live outside the core under `brands/` and `config/pod-profiles.json`; neither exists until a real profile is supplied.
