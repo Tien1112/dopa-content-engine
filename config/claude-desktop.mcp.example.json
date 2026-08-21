@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "dopa-content-planner": {
+      "command": "/ABSOLUTE/PATH/TO/node",
+      "args": [
+        "/ABSOLUTE/PATH/TO/dopa-content-engine/dist/src/mcp/stdio.js"
+      ],
+      "env": {
+        "DOPA_CONTENT_PLANNER_ROOT": "/ABSOLUTE/PRIVATE/PATH/dopa-content-planner-data"
+      }
+    }
+  }
+}

@@ -58,7 +58,7 @@ The generated `index.html` is a self-contained review surface with playback and 
 
 ## Content planning foundation
 
-The channel-neutral planning contract lives outside the renderer in `src/publishing`. It creates drafts from QA-approved media, requires explicit approval, and routes each approved item through a future Tailwind, Meta, Google Business Profile, or Google Merchant adapter. No live publishing credentials or APIs are coupled to `src/core`. See [content planning and publishing](docs/content-planning.md) and the machine-readable [content-plan schema](schemas/content-plan.schema.json).
+The channel-neutral planning contract lives outside the renderer in `src/publishing`. The local stdio MCP server in `src/mcp` lets Claude Desktop create versioned drafts, read them back, require separate approval and queue confirmations, and place exact approved items in an idempotent per-channel outbox. No live publishing credentials or APIs are coupled to `src/core`. See [content planning and publishing](docs/content-planning.md), [Claude Desktop setup](docs/claude-content-planner.md), and the machine-readable [content-plan schema](schemas/content-plan.schema.json).
 
 ## Canonical input
 
