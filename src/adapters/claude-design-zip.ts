@@ -12,6 +12,13 @@ export interface PreparedClaudeJobs {
   missing_approved_compositions: string[];
 }
 
+export interface PreparedHtmlJob {
+  manifest: string;
+  pages: number;
+  canvas: { width: number; height: number };
+  preset: string;
+}
+
 function unzip(args: string[], binary = false): Promise<string | Buffer> {
   return new Promise((resolve, reject) => {
     execFile("unzip", args, { encoding: binary ? "buffer" : "utf8", maxBuffer: MAX_ENTRY_BYTES }, (error, stdout, stderr) => {
@@ -52,6 +59,45 @@ export function detectFontFamilies(html: string): string[] {
 
 export function isTwoByThree(width: number, height: number): boolean {
   return width > 0 && height > 0 && width * 3 === height * 2;
+}
+
+export function exactPresetForCanvas(width: number, height: number): string {
+  const key = `${width}x${height}`;
+  const presets: Record<string, string> = {
+    "1080x1080": "instagram_square",
+    "1080x1350": "instagram_feed",
+    "1080x1920": "instagram_story",
+    "1000x1500": "pinterest_standard"
+  };
+  const preset = presets[key];
+  if (!preset) throw new Error(`No approved exact output preset exists for canvas ${key}`);
+  return preset;
+}
+
+export async function prepareClaudeDesignHtml(html: string, outputInput: string, brand = "imported-design"): Promise<PreparedHtmlJob> {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(brand)) throw new Error("brand must be a lowercase slug");
+  const outputRoot = path.resolve(outputInput);
+  const canvas = detectHtmlPages(html);
+  const preset = exactPresetForCanvas(canvas.width, canvas.height);
+  const requiredFonts = detectFontFamilies(html);
+  await mkdir(path.join(outputRoot, "source"), { recursive: true });
+  await writeFile(path.join(outputRoot, "source", "index.html"), html);
+  const manifest = {
+    schema_version: 1,
+    content_id: `${brand}-claude-${preset}-approved`,
+    brand,
+    version: 1,
+    source: "source/index.html",
+    canvas: { width: canvas.width, height: canvas.height },
+    pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: canvas.count },
+    animation: false,
+    transparent_background: false,
+    ...(requiredFonts.length ? { required_fonts: requiredFonts } : {}),
+    outputs: [{ preset, mode: "exact" }]
+  };
+  const manifestPath = path.join(outputRoot, "manifest.json");
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return { manifest: manifestPath, pages: canvas.count, canvas: { width: canvas.width, height: canvas.height }, preset };
 }
 
 export async function prepareClaudeDesignZip(zipInput: string, outputInput: string, brand = "imported-design"): Promise<PreparedClaudeJobs> {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detectFontFamilies, detectHtmlPages, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
+import { detectFontFamilies, detectHtmlPages, exactPresetForCanvas, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
 
 test("rejects ZIP path traversal before extraction", () => {
   assert.throws(() => validateZipEntries(["safe/file.html", "../escape.html"]), /Unsafe ZIP entry/);
@@ -28,4 +28,10 @@ test("recognizes approved Pinterest 2:3 source dimensions", () => {
 test("detects packaged font families without brand hard-coding", () => {
   const html = "<style>@font-face { font-family: 'Newsreader'; src: url(font.woff2) } @font-face { font-family: 'Sora'; src: url(other.woff2) }</style>";
   assert.deepEqual(detectFontFamilies(html), ["Newsreader", "Sora"]);
+});
+
+test("maps only approved exact canvases to output presets", () => {
+  assert.equal(exactPresetForCanvas(1080, 1350), "instagram_feed");
+  assert.equal(exactPresetForCanvas(1080, 1920), "instagram_story");
+  assert.throws(() => exactPresetForCanvas(1200, 1200), /No approved exact output preset/);
 });
