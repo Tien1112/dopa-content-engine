@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+dist
+work
+outputs
+renders
+playwright-report
+test-results
+*.log
+.DS_Store

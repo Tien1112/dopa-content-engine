@@ -31,6 +31,10 @@ The example writes `examples/static-design/renders/instagram_feed.png` and `qa-r
 dopa-render ./examples/static-design/manifest.json
 ```
 
+For hosted execution, the same CLI is packaged as an unprivileged Cloud Run Job
+container. See [Cloud Run renderer](docs/cloud-run-renderer.md). Claude and
+Lovable never render production media in the browser.
+
 Prepare a downloaded Claude Design ZIP without executing files from the archive:
 
 ```bash
