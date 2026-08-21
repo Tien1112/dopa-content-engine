@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import path from "node:path";
 import * as z from "zod";
+import { applyInstagramGridOrder, createSocialPreview } from "../publishing/feed-preview.js";
 import { scheduleApprovedPlan } from "../publishing/plan.js";
 import { createOutboxAdapters, listOutboxRecords, recordDispatchReceipt } from "../publishing/outbox.js";
 import { ContentPlanStore } from "../publishing/store.js";
@@ -10,6 +12,7 @@ const contentTypeSchema = z.enum(["pin", "feed_post", "carousel", "story", "reel
 const mediaSchema = z.object({
   asset_id: z.string().min(1),
   file: z.string().min(1),
+  public_url: z.string().url().optional(),
   mime_type: z.enum(["image/png", "image/jpeg", "video/mp4", "video/webm"]),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -41,10 +44,17 @@ const draftSchema = z.object({
   items: z.array(itemSchema).min(1)
 }).strict();
 
-export function buildContentPlannerServer(planRoot: string, outboxRoot: string): McpServer {
+export interface ContentPlannerServerOptions {
+  previewRoot?: string;
+  mediaRoot?: string;
+}
+
+export function buildContentPlannerServer(planRoot: string, outboxRoot: string, options: ContentPlannerServerOptions = {}): McpServer {
   const store = new ContentPlanStore(planRoot);
+  const previewRoot = options.previewRoot ?? path.join(path.dirname(planRoot), "previews");
+  const mediaRoot = options.mediaRoot ?? process.cwd();
   const server = new McpServer({ name: "dopa-content-planner", version: "0.1.0" }, {
-    instructions: "Create and revise drafts conversationally. Never approve without Margot's explicit approval of the exact visible revision. Never queue a plan without a second explicit scheduling instruction. Queued items are handoffs, not proof of live publication."
+    instructions: "Create and revise drafts conversationally. Before approval, offer dopa_create_social_preview for Instagram and Facebook. If Margot copies a chosen newest-first grid order, apply it with dopa_apply_instagram_grid_order and create a fresh preview of the new revision. Never approve without Margot's explicit approval of the exact visible revision. Never queue a plan without a second explicit scheduling instruction. Queued items are handoffs, not proof of live publication."
   });
 
   server.registerTool("dopa_channel_requirements", {
@@ -52,8 +62,8 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string):
     description: "Use before drafting to learn supported placements, required copy and which connector performs the final dispatch. This tool does not change anything."
   }, async () => result({
     pinterest: { content_types: ["pin"], final_dispatch: "Tailwind MCP in the same Claude conversation", copy: ["title", "message", "alt_text", "destination_url"], note: "Choose a Pinterest board in Tailwind before dispatch." },
-    instagram: { content_types: ["feed_post", "carousel", "story", "reel"], final_dispatch: "Dopa Meta adapter (requires Meta OAuth connection)", copy: ["message", "hashtags", "alt_text", "first_comment"] },
-    facebook: { content_types: ["feed_post", "carousel", "story", "reel"], final_dispatch: "Dopa Meta adapter (requires Meta OAuth connection)", copy: ["message", "destination_url", "call_to_action"] },
+    instagram: { content_types: ["feed_post", "carousel", "story", "reel"], proven_live_dispatch: ["feed_post", "carousel", "reel"], final_dispatch: "Dopa Meta Graph adapter (requires Meta connection and public HTTPS media)", copy: ["message", "hashtags", "alt_text", "first_comment"], note: "Story can be planned but live dispatch deliberately fails until proven." },
+    facebook: { content_types: ["feed_post", "carousel", "story", "reel"], proven_live_dispatch: ["feed_post"], final_dispatch: "Dopa Meta Graph adapter (requires Meta connection and public HTTPS media)", copy: ["message", "destination_url", "call_to_action"], note: "Carousel, Story and Reel can be planned but live dispatch deliberately fails until proven." },
     google_business_profile: { content_types: ["update", "offer", "event"], final_dispatch: "Dopa Google Business Profile adapter (requires Google OAuth and location)", copy: ["message", "destination_url", "call_to_action"] },
     google_merchant: { content_types: ["promotion"], final_dispatch: "Dopa Merchant adapter (requires Merchant account, promotion data source and Google OAuth)", note: "Merchant promotions are commerce objects and undergo Google review; they are not ordinary social posts." }
   }));
@@ -80,6 +90,34 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string):
     description: "Read the exact current revision before asking Margot to approve or schedule it. This tool does not change anything.",
     inputSchema: z.object({ plan_id: z.string().min(1) }).strict()
   }, async ({ plan_id }) => result(await store.get(plan_id)));
+
+  server.registerTool("dopa_create_social_preview", {
+    title: "Create a visual Instagram and Facebook preview",
+    description: "Generate a local review page for one exact plan revision. Margot can drag Instagram tiles, download or copy the desired order, and review Facebook as a timeline. This never changes, approves, queues or publishes the plan.",
+    inputSchema: z.object({
+      plan_id: z.string().min(1),
+      expected_revision: z.number().int().positive()
+    }).strict()
+  }, async ({ plan_id, expected_revision }) => {
+    const plan = await store.get(plan_id);
+    if (plan.revision !== expected_revision) throw new Error(`Plan revision changed: expected ${expected_revision}, current revision is ${plan.revision}`);
+    return result(await createSocialPreview(plan, previewRoot, mediaRoot));
+  });
+
+  server.registerTool("dopa_apply_instagram_grid_order", {
+    title: "Apply an approved Instagram grid order",
+    description: "Create a new draft revision from the newest-first Instagram order Margot selected in the visual preview. Internally assigns the existing schedule slots in reverse publication order. This never approves, queues or publishes.",
+    inputSchema: z.object({
+      plan_id: z.string().min(1),
+      expected_revision: z.number().int().positive(),
+      newest_first_item_ids: z.array(z.string().min(1)).min(1)
+    }).strict()
+  }, async ({ plan_id, expected_revision, newest_first_item_ids }) => {
+    const plan = await store.get(plan_id);
+    if (plan.revision !== expected_revision) throw new Error(`Plan revision changed: expected ${expected_revision}, current revision is ${plan.revision}`);
+    const revised = applyInstagramGridOrder(plan, newest_first_item_ids);
+    return result(await store.replaceDraft(revised));
+  });
 
   server.registerTool("dopa_approve_content_plan", {
     title: "Approve one exact Dopa plan revision",
@@ -110,7 +148,7 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string):
       receipts,
       next_actions: {
         pinterest: "Claude calls the connected Tailwind MCP with the exact approved pin job and records Tailwind's receipt.",
-        instagram_facebook: "Connect the Dopa Meta OAuth adapter before live dispatch.",
+        instagram_facebook: "Configure the Dopa Meta Graph adapter, private token environment variable, account IDs, public HTTPS media URLs and a recurring due-job worker before live dispatch.",
         google_business_profile: "Connect Google OAuth and select the Business Profile location before live dispatch.",
         google_merchant: "Connect Merchant Center, select a promotion data source and expect Google review before the promotion becomes live."
       }

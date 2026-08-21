@@ -1,0 +1,13 @@
+{
+  "graph_api_version": "v25.0",
+  "accounts": {
+    "dopa-instagram": {
+      "access_token_env": "DOPA_META_ACCESS_TOKEN",
+      "instagram_user_id": "REPLACE_WITH_INSTAGRAM_PROFESSIONAL_ACCOUNT_ID"
+    },
+    "dopa-facebook": {
+      "access_token_env": "DOPA_META_ACCESS_TOKEN",
+      "facebook_page_id": "REPLACE_WITH_FACEBOOK_PAGE_ID"
+    }
+  }
+}

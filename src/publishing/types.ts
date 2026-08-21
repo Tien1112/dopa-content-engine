@@ -19,6 +19,7 @@ export type PublishingContentType =
 export interface ApprovedMediaAsset {
   asset_id: string;
   file: string;
+  public_url?: string;
   mime_type: "image/png" | "image/jpeg" | "video/mp4" | "video/webm";
   width: number;
   height: number;

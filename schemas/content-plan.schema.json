@@ -53,6 +53,7 @@
       "properties": {
         "asset_id": { "type": "string", "minLength": 1 },
         "file": { "type": "string", "minLength": 1 },
+        "public_url": { "type": "string", "format": "uri", "pattern": "^https?://" },
         "mime_type": { "enum": ["image/png", "image/jpeg", "video/mp4", "video/webm"] },
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 },

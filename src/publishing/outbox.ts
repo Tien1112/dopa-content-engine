@@ -11,6 +11,7 @@ export interface OutboxRecord {
   status: "awaiting-channel-dispatch" | "dispatched";
   item: ContentPlanItem;
   platform_receipt?: { platform_id: string; recorded_at: string };
+  last_error?: { message: string; recorded_at: string };
 }
 
 export class OutboxPublisherAdapter implements PublisherAdapter {
@@ -65,9 +66,24 @@ export async function recordDispatchReceipt(root: string, channel: PublishingCha
     if (record.platform_receipt?.platform_id !== platformId) throw new Error("A different platform receipt is already recorded");
     return record;
   }
-  const updated: OutboxRecord = { ...record, status: "dispatched", platform_receipt: { platform_id: platformId, recorded_at: recordedAt } };
-  const temporary = `${file}.${process.pid}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(updated, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  await rename(temporary, file);
+  const { last_error: _lastError, ...withoutError } = record;
+  const updated: OutboxRecord = { ...withoutError, status: "dispatched", platform_receipt: { platform_id: platformId, recorded_at: recordedAt } };
+  await writeRecord(file, updated);
   return updated;
+}
+
+export async function recordDispatchFailure(root: string, channel: PublishingChannel, externalId: string, message: string, recordedAt: string): Promise<OutboxRecord> {
+  if (!/^outbox-[a-f0-9]{20}$/.test(externalId)) throw new Error("Invalid outbox external_id");
+  const file = path.join(root, channel, `${externalId}.json`);
+  const record = JSON.parse(await readFile(file, "utf8")) as OutboxRecord;
+  if (record.status === "dispatched") throw new Error(`Cannot record a failure after ${externalId} was dispatched`);
+  const updated: OutboxRecord = { ...record, last_error: { message, recorded_at: recordedAt } };
+  await writeRecord(file, updated);
+  return updated;
+}
+
+async function writeRecord(file: string, record: OutboxRecord): Promise<void> {
+  const temporary = `${file}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  await rename(temporary, file);
 }

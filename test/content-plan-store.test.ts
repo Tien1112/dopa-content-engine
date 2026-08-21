@@ -74,6 +74,8 @@ test("Claude MCP surface requires separate approval and queue confirmations", as
   try {
     const tools = await client.listTools();
     assert.ok(tools.tools.some((tool) => tool.name === "dopa_create_draft_plan"));
+    assert.ok(tools.tools.some((tool) => tool.name === "dopa_create_social_preview"));
+    assert.ok(tools.tools.some((tool) => tool.name === "dopa_apply_instagram_grid_order"));
     const input = draft();
     const { schema_version: _schema, status: _status, ...draftInput } = input;
     const created = await client.callTool({ name: "dopa_create_draft_plan", arguments: draftInput });

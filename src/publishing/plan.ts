@@ -81,6 +81,7 @@ function itemErrors(item: ContentPlanItem, index: number): string[] {
     const mediaAt = `${at}.media[${mediaIndex}]`;
     if (!asset.asset_id.trim()) errors.push(`${mediaAt}.asset_id is required`);
     if (!asset.file.trim()) errors.push(`${mediaAt}.file is required`);
+    if (asset.public_url && !isHttpUrl(asset.public_url)) errors.push(`${mediaAt}.public_url must be HTTP(S)`);
     if (asset.width <= 0 || asset.height <= 0) errors.push(`${mediaAt} has invalid dimensions`);
     if (asset.qa !== "passed") errors.push(`${mediaAt} has not passed render QA`);
   }
