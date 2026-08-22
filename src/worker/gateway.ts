@@ -34,6 +34,7 @@ export interface RenderWorkerStore {
 type FetchLike = typeof fetch;
 const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
+const MAX_GATEWAY_ERROR_TEXT = 1000;
 
 export class RenderGatewayStore implements RenderWorkerStore {
   private readonly endpoint: URL;
@@ -102,7 +103,7 @@ export class RenderGatewayStore implements RenderWorkerStore {
   }
 
   async fail(jobId: string, errorText: string): Promise<void> {
-    await this.action({ action: "fail", job_id: jobId, error_text: errorText.slice(0, 4000) });
+    await this.action({ action: "fail", job_id: jobId, error_text: errorText.slice(0, MAX_GATEWAY_ERROR_TEXT) });
   }
 
   private async action<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<T> {

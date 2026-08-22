@@ -61,6 +61,19 @@ test("gateway reserves, uploads and records the exact output", async () => {
   assert.deepEqual(actions, ["reserve_output", "upload", "record_output"]);
 });
 
+test("gateway bounds failure details so Lovable can persist the failed status", async () => {
+  let recorded: Record<string, unknown> | undefined;
+  const fakeFetch = async (_input: string | URL | Request, init: RequestInit = {}) => {
+    recorded = JSON.parse(String(init.body)) as Record<string, unknown>;
+    return Response.json({ ok: true });
+  };
+  const store = new RenderGatewayStore("https://gateway.example/worker", token, fakeFetch as typeof fetch);
+  await store.fail("job", "x".repeat(5000));
+  assert.equal(recorded?.action, "fail");
+  assert.equal(recorded?.job_id, "job");
+  assert.equal(String(recorded?.error_text).length, 1000);
+});
+
 test("gateway refuses insecure remote URLs and weak tokens", () => {
   assert.throws(() => new RenderGatewayStore("http://gateway.example/worker", token), /HTTPS/);
   assert.throws(() => new RenderGatewayStore("https://gateway.example/worker", "short"), /at least 32/);

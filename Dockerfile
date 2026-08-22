@@ -8,7 +8,7 @@ COPY src ./src
 COPY test ./test
 RUN npm run build
 
-FROM mcr.microsoft.com/playwright:v1.55.0-noble
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
 
 ENV NODE_ENV=production \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
