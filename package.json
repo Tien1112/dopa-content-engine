@@ -12,6 +12,7 @@
     "config:claude-desktop": "npm run build && node scripts/create-claude-desktop-config.mjs",
     "approval:dopa": "npm run build && node scripts/create-local-approval.mjs",
     "mcp:content-planner": "npm run build && node dist/src/mcp/stdio.js",
+    "mcp:remote": "npm run build && node dist/src/mcp/http.js",
     "publish:meta-due": "npm run build && node dist/src/publishing/meta-worker.js",
     "proof:eye-animation": "node scripts/create-eye-animation-proof.mjs",
     "render:example": "npm run build && node dist/src/cli.js examples/static-design/manifest.json",
@@ -26,6 +27,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2"
   },

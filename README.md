@@ -62,7 +62,7 @@ The generated `index.html` is a self-contained review surface with playback and 
 
 ## Content planning foundation
 
-The channel-neutral planning contract lives outside the renderer in `src/publishing`. The local stdio MCP server in `src/mcp` lets Claude Desktop create versioned drafts, generate a draggable Instagram-grid and Facebook-timeline review, convert the selected grid into reverse chronological publishing order, require separate approval and queue confirmations, and place exact approved items in an idempotent per-channel outbox. A separate Meta Graph adapter handles proven Instagram/Facebook placements without coupling credentials or APIs to `src/core`. See [content planning and publishing](docs/content-planning.md), [Claude Desktop setup](docs/claude-content-planner.md), and the machine-readable [content-plan schema](schemas/content-plan.schema.json).
+The channel-neutral planning contract lives outside the renderer in `src/publishing`. The local stdio MCP server in `src/mcp` lets Claude Desktop create versioned drafts, generate a draggable Instagram-grid and Facebook-timeline review, convert the selected grid into reverse chronological publishing order, require separate approval and queue confirmations, and place exact approved items in an idempotent per-channel outbox. A separate Meta Graph adapter handles proven Instagram/Facebook placements without coupling credentials or APIs to `src/core`. See [content planning and publishing](docs/content-planning.md), [local Claude Desktop setup](docs/claude-content-planner.md), the [online Railway/Lovable Claude connector](docs/claude-remote-connector.md), and the machine-readable [content-plan schema](schemas/content-plan.schema.json).
 
 ## Canonical input
 
