@@ -5,14 +5,12 @@ import path from "node:path";
 import { prepareClaudeDesignHtml, prepareClaudeDesignZip } from "../adapters/claude-design-zip.js";
 import { renderJob } from "../core/render.js";
 import type { OutputQa, QaReport } from "../core/types.js";
-import { SupabaseRenderStore, type RenderJobRow } from "./supabase.js";
+import { RenderGatewayStore, type RenderJobRow, type RenderWorkerStore } from "./gateway.js";
 
-interface StoredId { id: string }
-
-export async function processRenderJob(store: SupabaseRenderStore, job: RenderJobRow): Promise<void> {
+export async function processRenderJob(store: RenderWorkerStore, job: RenderJobRow): Promise<void> {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), `dopa-render-${job.id}-`));
   try {
-    const sourceBytes = await store.download(job.source_bucket, job.source_path);
+    const sourceBytes = await store.downloadSource(job);
     const sourceName = safeFileName(job.source_file_name);
     const sourceFile = path.join(temporaryRoot, sourceName);
     await writeFile(sourceFile, sourceBytes);
@@ -29,7 +27,7 @@ export async function processRenderJob(store: SupabaseRenderStore, job: RenderJo
       throw new Error("Only .zip and .html source packages are supported");
     }
 
-    await store.updateJob(job.id, { status: "qa_controle" });
+    await store.setQa(job.id);
     const reports: Array<{ report: QaReport; root: string }> = [];
     for (const manifest of manifests) reports.push({ report: await renderJob(manifest), root: path.dirname(manifest) });
     const failedReports = reports.filter(({ report }) => report.status !== "passed");
@@ -41,60 +39,44 @@ export async function processRenderJob(store: SupabaseRenderStore, job: RenderJo
     for (const { report, root } of reports) {
       for (const output of report.outputs) await storePassedOutput(store, job, root, output, report);
     }
-    await store.updateRevision(job.revision_id, { status: "in_review", label: "Render gereed voor review" });
-    await store.updateCampaign(job.campaign_id, { status: "in_review" });
-    await store.updateJob(job.id, { status: "klaar_voor_review", error_text: null });
+    await store.complete(job.id);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await store.updateJob(job.id, { status: "mislukt", error_text: message.slice(0, 4000) });
+    try {
+      await store.fail(job.id, message);
+    } catch (failError) {
+      console.error(`Render job ${job.id} failed and failure reporting also failed: ${safeError(failError)}`);
+    }
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 }
 
-async function storePassedOutput(store: SupabaseRenderStore, job: RenderJobRow, packageRoot: string, output: OutputQa, report: QaReport): Promise<void> {
+async function storePassedOutput(store: RenderWorkerStore, job: RenderJobRow, packageRoot: string, output: OutputQa, report: QaReport): Promise<void> {
   if (output.qa !== "passed" || !output.file) throw new Error("Refusing to store output without passing QA");
+  const width = output.width;
+  const height = output.height;
+  if (!width || !height || !Number.isInteger(width) || !Number.isInteger(height)) {
+    throw new Error("Refusing to store output without exact positive dimensions");
+  }
   const localFile = path.resolve(packageRoot, output.file);
   if (!localFile.startsWith(`${path.resolve(packageRoot)}${path.sep}`)) throw new Error("QA output path escaped its package");
   const bytes = await readFile(localFile);
   const checksum = createHash("sha256").update(bytes).digest("hex");
   const fileName = safeFileName(path.basename(localFile));
-  const storagePath = `${job.workspace_id}/${job.campaign_id}/${job.revision_id}/${fileName}`;
-  await store.upload("canonical-assets", storagePath, bytes, "image/png");
   const designCode = output.page_label ?? path.parse(fileName).name;
-  const content = await store.insert<StoredId>("content_items", {
-    workspace_id: job.workspace_id,
-    campaign_id: job.campaign_id,
-    revision_id: job.revision_id,
-    design_code: designCode,
-    title: designCode
-  });
-  const asset = await store.insert<StoredId>("asset_files", {
-    workspace_id: job.workspace_id,
-    campaign_id: job.campaign_id,
-    content_item_id: content.id,
-    source_revision_id: job.revision_id,
+  await store.publishOutput(job.id, {
     asset_id: `${job.id}-${designCode}-${output.preset}`,
-    kind: "image",
+    design_code: designCode,
     format_key: output.preset,
     file_name: fileName,
-    storage_bucket: "canonical-assets",
-    storage_path: storagePath,
     mime_type: "image/png",
     byte_size: bytes.length,
-    width: output.width,
-    height: output.height,
+    width,
+    height,
     checksum_sha256: checksum,
-    qa_status: "passed",
-    import_state: "canonical_storage"
-  });
-  await store.insert<StoredId>("qa_results", {
-    workspace_id: job.workspace_id,
-    asset_file_id: asset.id,
-    status: "passed",
-    checked_by: "dopa-render-engine",
-    report: { content_id: report.content_id, output }
-  });
+    qa_report: { qa: "passed", content_id: report.content_id, output }
+  }, bytes);
 }
 
 function safeFileName(value: string): string {
@@ -104,9 +86,10 @@ function safeFileName(value: string): string {
 }
 
 export async function runWorker(): Promise<void> {
-  const baseUrl = requiredEnv("SUPABASE_URL");
-  const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const store = new SupabaseRenderStore(baseUrl, serviceRoleKey);
+  const gatewayUrl = requiredEnv("DOPA_RENDER_GATEWAY_URL");
+  const workerToken = requiredEnv("DOPA_RENDER_WORKER_TOKEN");
+  const store = new RenderGatewayStore(gatewayUrl, workerToken);
+  await store.health();
   const once = process.env.RENDER_ONCE === "1";
   const interval = Math.max(1000, Number(process.env.RENDER_POLL_INTERVAL_MS ?? 5000));
   do {
@@ -115,6 +98,10 @@ export async function runWorker(): Promise<void> {
     if (once) return;
     await new Promise((resolve) => setTimeout(resolve, job ? 100 : interval));
   } while (true);
+}
+
+function safeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function requiredEnv(name: string): string {

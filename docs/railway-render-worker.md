@@ -1,20 +1,31 @@
 # Railway render worker
 
-The production worker is a private background service. It polls the Supabase
-`render_jobs` queue, atomically claims one job, downloads the source from the
+The production worker is a private background service. It polls a narrow,
+authenticated Lovable/Supabase gateway, atomically claims one job, downloads the source from the
 private `source-packages` bucket, renders with pinned Playwright Chromium, runs
 machine-readable QA, and uploads only passing files to `canonical-assets`.
 
 Railway builds `Dockerfile.worker` through `railway.json`. Configure these
 service variables in Railway; never commit their values:
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` (prefer a dedicated `sb_secret_...` key named
-  `dopa-render-worker`; the legacy service-role JWT is also supported)
+- `DOPA_RENDER_GATEWAY_URL` — the deployed server-side `render-worker` gateway URL
+- `DOPA_RENDER_WORKER_TOKEN` — a unique random secret of at least 32 characters;
+  use the exact same value in Lovable Cloud → Secrets
 - `RENDER_POLL_INTERVAL_MS` (optional, defaults to `5000`)
 
-The service-role key stays inside Railway. It must never be exposed to Lovable,
-Claude Chat, browser JavaScript, logs, or GitHub.
+Railway never receives a Supabase service-role key. Database authority stays
+inside the server-side gateway. Never expose the worker token in Lovable
+frontend code, Claude Chat, browser JavaScript, logs, or GitHub.
+
+For Dopa, the production gateway URL is:
+
+```text
+https://dopa-content-hub.lovable.app/api/public/render-worker
+```
+
+The gateway is a server-side Lovable route. It accepts POST only and requires
+the `x-dopa-worker-token` header. The corresponding secret is configured as
+`DOPA_RENDER_WORKER_TOKEN` in Lovable Cloud → Secrets.
 
 The database needs an atomic claim function:
 
