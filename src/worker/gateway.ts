@@ -34,7 +34,7 @@ export interface RenderWorkerStore {
 type FetchLike = typeof fetch;
 const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
-const MAX_GATEWAY_ERROR_TEXT = 1000;
+const MAX_GATEWAY_ERROR_TEXT = 400;
 
 export class RenderGatewayStore implements RenderWorkerStore {
   private readonly endpoint: URL;
@@ -117,7 +117,10 @@ export class RenderGatewayStore implements RenderWorkerStore {
       redirect: "error"
     });
     const text = await readBoundedText(response, MAX_RESPONSE_BYTES);
-    if (!response.ok) throw new Error(`Render gateway request failed (${response.status})`);
+    if (!response.ok) {
+      const detail = text.trim().replace(/\s+/g, " ").slice(0, 300);
+      throw new Error(`Render gateway request failed (${response.status})${detail ? `: ${detail}` : ""}`);
+    }
     try {
       return JSON.parse(text) as T;
     } catch {

@@ -71,7 +71,13 @@ test("gateway bounds failure details so Lovable can persist the failed status", 
   await store.fail("job", "x".repeat(5000));
   assert.equal(recorded?.action, "fail");
   assert.equal(recorded?.job_id, "job");
-  assert.equal(String(recorded?.error_text).length, 1000);
+  assert.equal(String(recorded?.error_text).length, 400);
+});
+
+test("gateway surfaces bounded server validation details", async () => {
+  const fakeFetch = async () => new Response('{"error":"error_text is too long"}', { status: 400 });
+  const store = new RenderGatewayStore("https://gateway.example/worker", token, fakeFetch as typeof fetch);
+  await assert.rejects(store.fail("job", "broken"), /400.*error_text is too long/);
 });
 
 test("gateway refuses insecure remote URLs and weak tokens", () => {

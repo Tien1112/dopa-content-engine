@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detectFontFamilies, detectHtmlPages, exactPresetForCanvas, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
+import { detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
 
 test("rejects ZIP path traversal before extraction", () => {
   assert.throws(() => validateZipEntries(["safe/file.html", "../escape.html"]), /Unsafe ZIP entry/);
@@ -28,6 +28,14 @@ test("recognizes approved Pinterest 2:3 source dimensions", () => {
 test("detects packaged font families without brand hard-coding", () => {
   const html = "<style>@font-face { font-family: 'Newsreader'; src: url(font.woff2) } @font-face { font-family: 'Sora'; src: url(other.woff2) }</style>";
   assert.deepEqual(detectFontFamilies(html), ["Newsreader", "Sora"]);
+});
+
+test("requires only packaged fonts actually used by the design", () => {
+  const html = String.raw`<style>
+    @font-face { font-family: 'Newsreader'; src: url(newsreader.woff2) }
+    @font-face { font-family: 'Space Mono'; src: url(space-mono.woff2) }
+  </style><section style=\"font-family:'Newsreader',serif\">Approved design</section>`;
+  assert.deepEqual(detectRequiredFontFamilies(html), ["Newsreader"]);
 });
 
 test("maps only approved exact canvases to output presets", () => {

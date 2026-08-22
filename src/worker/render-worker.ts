@@ -37,7 +37,7 @@ export async function processRenderJob(store: RenderWorkerStore, job: RenderJobR
     }
     const failedReports = reports.filter(({ report }) => report.status !== "passed");
     if (failedReports.length) {
-      const errors = failedReports.flatMap(({ report }) => report.outputs.flatMap((output) => output.errors));
+      const errors = [...new Set(failedReports.flatMap(({ report }) => report.outputs.flatMap((output) => output.errors)))];
       throw new Error(`Machine-readable QA failed: ${errors.join("; ") || "unknown QA error"}`);
     }
 

@@ -57,6 +57,22 @@ export function detectFontFamilies(html: string): string[] {
   return [...new Set([...html.matchAll(/@font-face\s*\{[^}]*?font-family\s*:\s*\\?["']([^"';\\]+)/gs)].map((match) => match[1]!.trim()).filter(Boolean))].sort();
 }
 
+/**
+ * Only require packaged fonts that are actually selected by visible content.
+ * Claude bundles can include unused @font-face declarations; requiring every
+ * declaration makes document.fonts.check fail for fonts the browser correctly
+ * never downloads. Used fonts remain strict QA requirements.
+ */
+export function detectRequiredFontFamilies(html: string): string[] {
+  const packaged = new Set(detectFontFamilies(html));
+  const contentCss = html.replace(/@font-face\s*\{[^}]*\}/gis, "");
+  const used = [...contentCss.matchAll(/font-family\s*:\s*\\?["']?([^;"'\\}]+)/gi)]
+    .flatMap((match) => (match[1] ?? "").split(","))
+    .map((family) => family.trim())
+    .filter(Boolean);
+  return [...new Set(used.filter((family) => packaged.has(family)))].sort();
+}
+
 export function isTwoByThree(width: number, height: number): boolean {
   return width > 0 && height > 0 && width * 3 === height * 2;
 }
@@ -79,7 +95,7 @@ export async function prepareClaudeDesignHtml(html: string, outputInput: string,
   const outputRoot = path.resolve(outputInput);
   const canvas = detectHtmlPages(html);
   const preset = exactPresetForCanvas(canvas.width, canvas.height);
-  const requiredFonts = detectFontFamilies(html);
+  const requiredFonts = detectRequiredFontFamilies(html);
   await mkdir(path.join(outputRoot, "source"), { recursive: true });
   await writeFile(path.join(outputRoot, "source", "index.html"), html);
   const manifest = {
@@ -112,7 +128,7 @@ export async function prepareClaudeDesignZip(zipInput: string, outputInput: stri
   if (bundledCandidates.length !== 1) throw new Error(`Expected exactly one bundled Claude HTML export, found ${bundledCandidates.length}`);
   const html = String(await unzip(["-p", zipPath, bundledCandidates[0]!]));
   const canvas = detectHtmlPages(html);
-  const requiredFonts = detectFontFamilies(html);
+  const requiredFonts = detectRequiredFontFamilies(html);
 
   const squareRoot = path.join(outputRoot, "square-source");
   await mkdir(path.join(squareRoot, "source"), { recursive: true });
