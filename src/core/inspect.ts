@@ -13,8 +13,23 @@ async function walk(directory: string, root = directory): Promise<string[]> {
 
 export async function inspectPackage(packageRoot: string, sourcePath: string): Promise<InspectionReport> {
   const html = await readFile(sourcePath, "utf8");
-  const dependencyPattern = /(?:src|href)\s*=\s*["']([^"'#]+)|url\(\s*["']?([^"')]+)|@import\s+["']([^"']+)/gi;
-  const dependencies = [...html.matchAll(dependencyPattern)].map((m) => m[1] ?? m[2] ?? m[3]).filter((v): v is string => Boolean(v));
+  // Script bodies can contain JavaScript calls such as URL.createObjectURL(blob)
+  // and serialized HTML templates. Neither is a package dependency at inspection
+  // time. Preserve script opening tags (so <script src> is still inspected), but
+  // exclude their bodies before extracting markup and CSS dependencies.
+  const inspectableMarkup = html.replace(/(<script\b[^>]*>)[\s\S]*?<\/script\s*>/gi, "$1</script>");
+  const attributeDependencies = [...inspectableMarkup.matchAll(/<[^>]+\b(?:src|href)\s*=\s*["']([^"'#]+)["'][^>]*>/gi)]
+    .map((match) => match[1])
+    .filter((value): value is string => Boolean(value));
+  const cssSources = [
+    ...[...inspectableMarkup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)].map((match) => match[1] ?? ""),
+    ...[...inspectableMarkup.matchAll(/\bstyle\s*=\s*["']([^"']*)["']/gi)].map((match) => match[1] ?? "")
+  ];
+  const cssDependencies = cssSources.flatMap((css) => [
+    ...[...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)].map((match) => match[1]),
+    ...[...css.matchAll(/@import\s+(?:url\(\s*)?["']([^"']+)["']/gi)].map((match) => match[1])
+  ]).filter((value): value is string => Boolean(value));
+  const dependencies = [...new Set([...attributeDependencies, ...cssDependencies])];
   const remoteDependencies = dependencies.filter((item) => /^(?:https?:)?\/\//i.test(item));
   const localDependencies = dependencies.filter((item) => !/^(?:https?:)?\/\//i.test(item) && !/^(?:data:|blob:|#)/i.test(item));
   const fontFaces = [...html.matchAll(/@font-face\s*{[^}]*font-family\s*:\s*["']?([^;"'}]+)/gis)].map((m) => m[1]!.trim());

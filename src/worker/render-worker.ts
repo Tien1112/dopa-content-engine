@@ -9,6 +9,7 @@ import { RenderGatewayStore, type RenderJobRow, type RenderWorkerStore } from ".
 
 export async function processRenderJob(store: RenderWorkerStore, job: RenderJobRow): Promise<void> {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), `dopa-render-${job.id}-`));
+  console.log(`[render:${job.id}] picked up ${safeFileName(job.source_file_name)}`);
   try {
     const sourceBytes = await store.downloadSource(job);
     const sourceName = safeFileName(job.source_file_name);
@@ -27,9 +28,13 @@ export async function processRenderJob(store: RenderWorkerStore, job: RenderJobR
       throw new Error("Only .zip and .html source packages are supported");
     }
 
+    console.log(`[render:${job.id}] package prepared; ${manifests.length} approved composition(s) queued`);
     await store.setQa(job.id);
     const reports: Array<{ report: QaReport; root: string }> = [];
-    for (const manifest of manifests) reports.push({ report: await renderJob(manifest), root: path.dirname(manifest) });
+    for (const [index, manifest] of manifests.entries()) {
+      console.log(`[render:${job.id}] rendering composition ${index + 1}/${manifests.length}`);
+      reports.push({ report: await renderJob(manifest), root: path.dirname(manifest) });
+    }
     const failedReports = reports.filter(({ report }) => report.status !== "passed");
     if (failedReports.length) {
       const errors = failedReports.flatMap(({ report }) => report.outputs.flatMap((output) => output.errors));
@@ -40,8 +45,10 @@ export async function processRenderJob(store: RenderWorkerStore, job: RenderJobR
       for (const output of report.outputs) await storePassedOutput(store, job, root, output, report);
     }
     await store.complete(job.id);
+    console.log(`[render:${job.id}] completed; all outputs passed QA`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error(`[render:${job.id}] failed: ${message}`);
     try {
       await store.fail(job.id, message);
     } catch (failError) {
