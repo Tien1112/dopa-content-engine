@@ -22,7 +22,9 @@ omgeving voor upload, kanaalpreview, downloads en handmatige goedkeuring.
 Maak naast de render-worker een tweede Railway-service uit dezelfde GitHub-repo.
 
 1. Gebruik branch `codex/claude-zip-ci`.
-2. Stel de Dockerfile in op `Dockerfile.mcp`.
+2. Zet bij **Config as Code** het configuratiepad op `/railway.mcp.json`. Dit
+   kiest `Dockerfile.mcp` en de `/health`-controle, zonder de bestaande
+   render-workerconfiguratie te veranderen.
 3. Voeg deze privévariabelen toe:
    - `DOPA_MCP_URL_TOKEN`: een willekeurig geheim van minimaal 32 tekens. Dit
      komt alleen als onraadbare component in de Claude-connector-URL.
