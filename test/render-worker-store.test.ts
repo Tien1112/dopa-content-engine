@@ -21,3 +21,15 @@ test("returns null when the render queue is empty", async () => {
   const store = new SupabaseRenderStore("https://example.supabase.co", "secret", fakeFetch as typeof fetch);
   assert.equal(await store.claimNext(), null);
 });
+
+test("uses new Supabase secret keys as apikey without an invalid bearer header", async () => {
+  let headers: Headers | undefined;
+  const fakeFetch = async (_url: string | URL | Request, init?: RequestInit) => {
+    headers = new Headers(init?.headers);
+    return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const store = new SupabaseRenderStore("https://example.supabase.co", "sb_secret_worker", fakeFetch as typeof fetch);
+  await store.claimNext();
+  assert.equal(headers?.get("apikey"), "sb_secret_worker");
+  assert.equal(headers?.get("authorization"), null);
+});

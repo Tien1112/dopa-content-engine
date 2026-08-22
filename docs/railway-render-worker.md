@@ -9,7 +9,8 @@ Railway builds `Dockerfile.worker` through `railway.json`. Configure these
 service variables in Railway; never commit their values:
 
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (prefer a dedicated `sb_secret_...` key named
+  `dopa-render-worker`; the legacy service-role JWT is also supported)
 - `RENDER_POLL_INTERVAL_MS` (optional, defaults to `5000`)
 
 The service-role key stays inside Railway. It must never be exposed to Lovable,

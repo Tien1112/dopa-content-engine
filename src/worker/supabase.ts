@@ -22,7 +22,9 @@ export class SupabaseRenderStore {
   private headers(extra: Record<string, string> = {}): Record<string, string> {
     return {
       apikey: this.serviceRoleKey,
-      authorization: `Bearer ${this.serviceRoleKey}`,
+      ...(this.serviceRoleKey.startsWith("sb_secret_")
+        ? {}
+        : { authorization: `Bearer ${this.serviceRoleKey}` }),
       ...extra
     };
   }
