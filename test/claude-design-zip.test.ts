@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
+import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
 
 test("rejects ZIP path traversal before extraction", () => {
   assert.throws(() => validateZipEntries(["safe/file.html", "../escape.html"]), /Unsafe ZIP entry/);
@@ -42,4 +42,28 @@ test("maps only approved exact canvases to output presets", () => {
   assert.equal(exactPresetForCanvas(1080, 1350), "instagram_feed");
   assert.equal(exactPresetForCanvas(1080, 1920), "instagram_story");
   assert.throws(() => exactPresetForCanvas(1200, 1200), /No approved exact output preset/);
+});
+
+test("defines the complete static social output set with exact dimensions", () => {
+  assert.deepEqual(CLAUDE_SOCIAL_PROFILES.map(({ preset, width, height }) => ({ preset, width, height })), [
+    { preset: "instagram_square", width: 1080, height: 1080 },
+    { preset: "instagram_feed", width: 1080, height: 1350 },
+    { preset: "instagram_story", width: 1080, height: 1920 },
+    { preset: "pinterest_standard", width: 1000, height: 1500 },
+    { preset: "youtube_facebook_wide", width: 3840, height: 2160 }
+  ]);
+});
+
+test("adapts square Claude pages without non-proportional scaling", () => {
+  const inner = '<html><body><section data-document-role="page" data-label="01" style="position:relative;width:1080px;height:1080px"><span style="position:absolute;left:900px;top:900px">x</span></section></body></html>';
+  const bundled = `<script type="__bundler/template">${JSON.stringify(inner)}</script>`;
+  const feed = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[1]);
+  assert.match(feed, /height:1350px/);
+  assert.match(feed, /top:1170px/);
+  assert.doesNotMatch(feed, /scaleX|scaleY/);
+  const pinterest = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[3]);
+  assert.match(pinterest, /transform:scale\(0\.9259259259259259\)/);
+  const wide = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[4]);
+  assert.match(wide, /width:1920px/);
+  assert.match(wide, /transform:scale\(2\)/);
 });

@@ -19,8 +19,7 @@ export async function processRenderJob(store: RenderWorkerStore, job: RenderJobR
     const manifests: string[] = [];
     if (sourceName.toLowerCase().endsWith(".zip")) {
       const prepared = await prepareClaudeDesignZip(sourceFile, preparedRoot, "dopa");
-      manifests.push(prepared.square.manifest);
-      if (prepared.pinterest) manifests.push(prepared.pinterest.manifest);
+      manifests.push(...prepared.variants.map((variant) => variant.manifest));
     } else if (sourceName.toLowerCase().endsWith(".html")) {
       const prepared = await prepareClaudeDesignHtml(sourceBytes.toString("utf8"), path.join(preparedRoot, "html"), "dopa");
       manifests.push(prepared.manifest);

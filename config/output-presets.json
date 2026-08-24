@@ -3,5 +3,6 @@
   "instagram_square": { "width": 1080, "height": 1080, "format": "png" },
   "instagram_story": { "width": 1080, "height": 1920, "format": "png" },
   "instagram_reel": { "width": 1080, "height": 1920, "format": "mp4" },
-  "pinterest_standard": { "width": 1000, "height": 1500, "format": "png" }
+  "pinterest_standard": { "width": 1000, "height": 1500, "format": "png" },
+  "youtube_facebook_wide": { "width": 3840, "height": 2160, "format": "png" }
 }

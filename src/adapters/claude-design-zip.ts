@@ -9,6 +9,7 @@ export interface PreparedClaudeJobs {
   archive: string;
   square: { manifest: string; pages: number; canvas: { width: number; height: number } };
   pinterest?: { manifest: string; pages: number; source_dimensions: { width: number; height: number } };
+  variants: Array<{ preset: string; manifest: string; pages: number; canvas: { width: number; height: number } }>;
   missing_approved_compositions: string[];
 }
 
@@ -90,6 +91,58 @@ export function exactPresetForCanvas(width: number, height: number): string {
   return preset;
 }
 
+export const CLAUDE_SOCIAL_PROFILES = [
+  { preset: "instagram_square", logicalWidth: 1080, logicalHeight: 1080, width: 1080, height: 1080 },
+  { preset: "instagram_feed", logicalWidth: 1080, logicalHeight: 1350, width: 1080, height: 1350 },
+  { preset: "instagram_story", logicalWidth: 1080, logicalHeight: 1920, width: 1080, height: 1920 },
+  { preset: "pinterest_standard", logicalWidth: 1080, logicalHeight: 1620, width: 1000, height: 1500 },
+  { preset: "youtube_facebook_wide", logicalWidth: 1920, logicalHeight: 1080, width: 3840, height: 2160 }
+] as const;
+
+/**
+ * Reflow the approved square Claude pages into a channel canvas without
+ * stretching their contents. Elements anchored in the lower/right half move
+ * with the corresponding edge; typography and decorative geometry stay at
+ * their authored proportions. Pinterest and the wide profile are rendered at
+ * a proportional scale so the final bitmap remains crisp at its exact preset.
+ */
+export function adaptBundledClaudeHtml(html: string, profile: typeof CLAUDE_SOCIAL_PROFILES[number]): string {
+  const templateMatch = html.match(/(<script type="__bundler\/template">\s*)([\s\S]*?)(\s*<\/script>)/);
+  if (!templateMatch) throw new Error("Bundled Claude template was not found");
+  let innerHtml: string;
+  try {
+    innerHtml = JSON.parse(templateMatch[2]!.trim()) as string;
+  } catch {
+    throw new Error("Bundled Claude template contains invalid JSON");
+  }
+  let pageCount = 0;
+  const adapted = innerHtml.replace(/<section data-document-role="page"[\s\S]*?<\/section>/g, (section) => {
+    pageCount += 1;
+    return adaptClaudeSection(section, profile);
+  });
+  if (pageCount === 0) throw new Error("Bundled Claude template contains no renderable pages");
+  return html.replace(templateMatch[0], `${templateMatch[1]}${JSON.stringify(adapted)}${templateMatch[3]}`);
+}
+
+function adaptClaudeSection(section: string, profile: typeof CLAUDE_SOCIAL_PROFILES[number]): string {
+  const deltaX = profile.logicalWidth - 1080;
+  const deltaY = profile.logicalHeight - 1080;
+  const scaleX = profile.width / profile.logicalWidth;
+  const scaleY = profile.height / profile.logicalHeight;
+  if (Math.abs(scaleX - scaleY) > 0.000001) throw new Error(`Profile ${profile.preset} would stretch the design`);
+  let adapted = section.replace(/(<section data-document-role="page"[^>]*style=")([^"]*)(")/, (_match, start, style, end) => {
+    let next = String(style)
+      .replace(/width:\s*1080px/, `width:${profile.logicalWidth}px`)
+      .replace(/height:\s*1080px/, `height:${profile.logicalHeight}px`);
+    if (!/width:\s*\d+px/.test(next) || !/height:\s*\d+px/.test(next)) throw new Error("Claude page has no explicit pixel dimensions");
+    if (scaleX !== 1) next += `;transform:scale(${scaleX});transform-origin:top left`;
+    return `${start}${next}${end}`;
+  });
+  if (deltaY) adapted = adapted.replace(/top:\s*(\d+)px/g, (match, raw) => Number(raw) > 540 ? `top:${Number(raw) + deltaY}px` : match);
+  if (deltaX) adapted = adapted.replace(/left:\s*(\d+)px/g, (match, raw) => Number(raw) > 540 ? `left:${Number(raw) + deltaX}px` : match);
+  return adapted;
+}
+
 export async function prepareClaudeDesignHtml(html: string, outputInput: string, brand = "imported-design"): Promise<PreparedHtmlJob> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(brand)) throw new Error("brand must be a lowercase slug");
   const outputRoot = path.resolve(outputInput);
@@ -130,75 +183,39 @@ export async function prepareClaudeDesignZip(zipInput: string, outputInput: stri
   const canvas = detectHtmlPages(html);
   const requiredFonts = detectRequiredFontFamilies(html);
 
-  const squareRoot = path.join(outputRoot, "square-source");
-  await mkdir(path.join(squareRoot, "source"), { recursive: true });
-  await writeFile(path.join(squareRoot, "source", "index.html"), html);
-  const squareManifest = {
-    schema_version: 1,
-    content_id: `${brand}-claude-square-approved`,
-    brand,
-    version: 1,
-    source: "source/index.html",
-    canvas: { width: canvas.width, height: canvas.height },
-    pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: canvas.count },
-    animation: false,
-    transparent_background: false,
-    ...(requiredFonts.length ? { required_fonts: requiredFonts } : {}),
-    outputs: [{ preset: "instagram_square", mode: "exact" }]
-  };
-  const squareManifestPath = path.join(squareRoot, "manifest.json");
-  await writeFile(squareManifestPath, `${JSON.stringify(squareManifest, null, 2)}\n`);
-
-  const rasterEntries: Array<{ entry: string; bytes: Buffer; width: number; height: number; alpha: boolean }> = [];
-  for (const entry of entries.filter((item) => /^uploads\/[^/]+\.png$/i.test(item))) {
-    const bytes = await unzip(["-p", zipPath, entry], true) as Buffer;
-    const dimensions = readPngDimensions(bytes);
-    if (isTwoByThree(dimensions.width, dimensions.height)) rasterEntries.push({ entry, bytes, ...dimensions });
-  }
-
-  let pinterest: PreparedClaudeJobs["pinterest"];
-  if (rasterEntries.length) {
-    const pinterestRoot = path.join(outputRoot, "pinterest-source");
-    const assetsRoot = path.join(pinterestRoot, "source", "assets");
-    await mkdir(assetsRoot, { recursive: true });
-    const pages: string[] = [];
-    const usedFilenames = new Set<string>();
-    for (const raster of rasterEntries) {
-      const base = path.posix.basename(raster.entry).replace(/[^A-Za-z0-9._-]+/g, "-").toLowerCase();
-      if (usedFilenames.has(base)) throw new Error(`Duplicate Pinterest asset filename after normalization: ${base}`);
-      usedFilenames.add(base);
-      const filename = base;
-      await writeFile(path.join(assetsRoot, filename), raster.bytes);
-      pages.push(`<section data-document-role="page" data-label="${escapeHtml(path.parse(base).name)}"><img src="assets/${escapeHtml(filename)}" alt="" width="1000" height="1500"></section>`);
-    }
-    const wrapper = `<!doctype html>
-<html><head><meta charset="utf-8"><style>*{box-sizing:border-box}html,body{margin:0;padding:0;background:transparent}body{display:flex;flex-direction:column;gap:32px}section{width:1000px;height:1500px;overflow:hidden}img{display:block;width:100%;height:100%;object-fit:contain}</style></head><body>${pages.join("")}</body></html>\n`;
-    await writeFile(path.join(pinterestRoot, "source", "index.html"), wrapper);
-    const pinterestManifest = {
+  if (canvas.width !== 1080 || canvas.height !== 1080) throw new Error(`Multi-format Claude ZIP production requires an approved 1080x1080 source canvas, got ${canvas.width}x${canvas.height}`);
+  const variants: PreparedClaudeJobs["variants"] = [];
+  for (const profile of CLAUDE_SOCIAL_PROFILES) {
+    const variantRoot = path.join(outputRoot, `${profile.preset}-source`);
+    await mkdir(path.join(variantRoot, "source"), { recursive: true });
+    const variantHtml = profile.preset === "instagram_square" ? html : adaptBundledClaudeHtml(html, profile);
+    await writeFile(path.join(variantRoot, "source", "index.html"), variantHtml);
+    const manifest = {
       schema_version: 1,
-      content_id: `${brand}-pinterest-approved`,
+      content_id: `${brand}-claude-${profile.preset}-approved`,
       brand,
       version: 1,
       source: "source/index.html",
-      canvas: { width: 1000, height: 1500 },
-      pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: rasterEntries.length },
+      canvas: { width: profile.width, height: profile.height },
+      pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: canvas.count },
       animation: false,
-      transparent_background: rasterEntries.every((entry) => entry.alpha),
-      outputs: [{ preset: "pinterest_standard", mode: "exact" }]
+      transparent_background: false,
+      ...(requiredFonts.length ? { required_fonts: requiredFonts } : {}),
+      outputs: [{ preset: profile.preset, mode: "exact" }]
     };
-    const pinterestManifestPath = path.join(pinterestRoot, "manifest.json");
-    await writeFile(pinterestManifestPath, `${JSON.stringify(pinterestManifest, null, 2)}\n`);
-    pinterest = { manifest: pinterestManifestPath, pages: rasterEntries.length, source_dimensions: { width: rasterEntries[0]!.width, height: rasterEntries[0]!.height } };
+    const manifestPath = path.join(variantRoot, "manifest.json");
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    variants.push({ preset: profile.preset, manifest: manifestPath, pages: canvas.count, canvas: { width: profile.width, height: profile.height } });
   }
+
+  const square = variants.find((variant) => variant.preset === "instagram_square")!;
+  const pinterestVariant = variants.find((variant) => variant.preset === "pinterest_standard")!;
 
   return {
     archive: zipPath,
-    square: { manifest: squareManifestPath, pages: canvas.count, canvas: { width: canvas.width, height: canvas.height } },
-    ...(pinterest ? { pinterest } : {}),
-    missing_approved_compositions: ["instagram_feed_1080x1350", "instagram_story_1080x1920"]
+    square: { manifest: square.manifest, pages: square.pages, canvas: square.canvas },
+    pinterest: { manifest: pinterestVariant.manifest, pages: pinterestVariant.pages, source_dimensions: { width: canvas.width, height: canvas.height } },
+    variants,
+    missing_approved_compositions: []
   };
-}
-
-function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
