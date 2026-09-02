@@ -53,6 +53,9 @@ revoke all on function public.claim_render_job() from public, anon, authenticate
 grant execute on function public.claim_render_job() to service_role;
 ```
 
-The worker does not invent missing layouts. A source canvas is accepted only
-when it exactly matches an approved preset. Missing 4:5, 9:16, or Pinterest
-compositions remain explicit production gaps for Claude/Margot to supply.
+The worker accepts the approved 1080×1080 Claude Design export and deterministically
+reflows its structured page elements into exactly the presets requested by the Hub.
+The first-release contract includes Instagram, Facebook, Pinterest, and Etsy images,
+plus static H.264 MP4 Reel outputs. It never stretches a bitmap or silently relabels
+the square source as another format. Every output must pass exact size, type, asset,
+font, and checksum QA before the job can enter review.

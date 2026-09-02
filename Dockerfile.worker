@@ -16,7 +16,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends unzip \
+    && apt-get install -y --no-install-recommends ffmpeg unzip \
     && rm -rf /var/lib/apt/lists/* \
     && npm ci --omit=dev \
     && npm cache clean --force

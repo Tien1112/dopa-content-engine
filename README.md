@@ -2,9 +2,9 @@
 
 A deterministic production rendering layer for approved Claude Design exports. Claude remains the creative cockpit; this service turns packaged HTML into validated production assets without redesigning it.
 
-## Phase 1 status
+## Social production status
 
-The current vertical slice supports static `exact` PNG output, including multi-page Claude Design exports where every approved canvas is a separate HTML element. It performs a package preflight, blocks external network requests, waits for document fonts and images, captures through Chromium, and validates every resulting PNG's dimensions, format, file size, and required resource state. Animation, POD, `contain`, and `cover` are specified as follow-on work and are not silently approximated.
+The production worker accepts a multi-page 1080×1080 Claude Design HTML/ZIP export and creates the exact Hub-requested Instagram, Facebook, Pinterest, and Etsy variants. Structured elements are reflowed without non-proportional stretching. PNG images and static H.264 Reel MP4s receive machine-readable dimension, type, file, font, and asset QA before upload. Animated source capture, POD, `contain`, and `cover` remain separate work and are not silently approximated.
 
 ## Requirements
 

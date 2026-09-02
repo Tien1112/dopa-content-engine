@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { prepareClaudeDesignHtml, prepareClaudeDesignZip } from "../adapters/claude-design-zip.js";
+import { prepareClaudeDesignHtmlVariants, prepareClaudeDesignZip } from "../adapters/claude-design-zip.js";
 import { renderJob } from "../core/render.js";
 import type { OutputQa, QaReport } from "../core/types.js";
 import { RenderGatewayStore, type RenderJobRow, type RenderWorkerStore } from "./gateway.js";
@@ -17,12 +17,13 @@ export async function processRenderJob(store: RenderWorkerStore, job: RenderJobR
     await writeFile(sourceFile, sourceBytes);
     const preparedRoot = path.join(temporaryRoot, "prepared");
     const manifests: string[] = [];
+    if (!job.requested_formats.length) throw new Error("Render job has no requested format contract");
     if (sourceName.toLowerCase().endsWith(".zip")) {
-      const prepared = await prepareClaudeDesignZip(sourceFile, preparedRoot, "dopa");
+      const prepared = await prepareClaudeDesignZip(sourceFile, preparedRoot, "dopa", job.requested_formats);
       manifests.push(...prepared.variants.map((variant) => variant.manifest));
     } else if (sourceName.toLowerCase().endsWith(".html")) {
-      const prepared = await prepareClaudeDesignHtml(sourceBytes.toString("utf8"), path.join(preparedRoot, "html"), "dopa");
-      manifests.push(prepared.manifest);
+      const prepared = await prepareClaudeDesignHtmlVariants(sourceBytes.toString("utf8"), path.join(preparedRoot, "html"), "dopa", job.requested_formats);
+      manifests.push(...prepared.variants.map((variant) => variant.manifest));
     } else {
       throw new Error("Only .zip and .html source packages are supported");
     }
@@ -76,7 +77,7 @@ async function storePassedOutput(store: RenderWorkerStore, job: RenderJobRow, pa
     design_code: designCode,
     format_key: output.preset,
     file_name: fileName,
-    mime_type: "image/png",
+    mime_type: output.format === "mp4" ? "video/mp4" : "image/png",
     byte_size: bytes.length,
     width,
     height,

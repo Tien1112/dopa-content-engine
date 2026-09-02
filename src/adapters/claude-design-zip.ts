@@ -95,9 +95,26 @@ export const CLAUDE_SOCIAL_PROFILES = [
   { preset: "instagram_square", logicalWidth: 1080, logicalHeight: 1080, width: 1080, height: 1080 },
   { preset: "instagram_feed", logicalWidth: 1080, logicalHeight: 1350, width: 1080, height: 1350 },
   { preset: "instagram_story", logicalWidth: 1080, logicalHeight: 1920, width: 1080, height: 1920 },
+  { preset: "instagram_reel", logicalWidth: 1080, logicalHeight: 1920, width: 1080, height: 1920 },
+  { preset: "facebook_feed", logicalWidth: 1080, logicalHeight: 1350, width: 1080, height: 1350 },
+  { preset: "facebook_landscape", logicalWidth: 1200, logicalHeight: 630, width: 1200, height: 630 },
+  { preset: "facebook_story", logicalWidth: 1080, logicalHeight: 1920, width: 1080, height: 1920 },
+  { preset: "facebook_reel", logicalWidth: 1080, logicalHeight: 1920, width: 1080, height: 1920 },
   { preset: "pinterest_standard", logicalWidth: 1080, logicalHeight: 1620, width: 1000, height: 1500 },
-  { preset: "youtube_facebook_wide", logicalWidth: 1920, logicalHeight: 1080, width: 3840, height: 2160 }
+  { preset: "etsy_listing_landscape", logicalWidth: 1440.18, logicalHeight: 1080, width: 2667, height: 2000 },
+  { preset: "etsy_listing_square", logicalWidth: 1080, logicalHeight: 1080, width: 2000, height: 2000 }
 ] as const;
+
+type ClaudeSocialProfile = typeof CLAUDE_SOCIAL_PROFILES[number];
+
+export function selectClaudeSocialProfiles(requestedPresets?: readonly string[]): ClaudeSocialProfile[] {
+  const requested = new Set(requestedPresets ?? CLAUDE_SOCIAL_PROFILES.map((profile) => profile.preset));
+  const unknown = [...requested].filter((key) => !CLAUDE_SOCIAL_PROFILES.some((profile) => profile.preset === key));
+  if (unknown.length) throw new Error(`Unsupported requested preset(s): ${unknown.join(", ")}`);
+  const selected = CLAUDE_SOCIAL_PROFILES.filter((profile) => requested.has(profile.preset));
+  if (!selected.length) throw new Error("At least one supported output preset is required");
+  return selected;
+}
 
 /**
  * Reflow the approved square Claude pages into a channel canvas without
@@ -106,36 +123,41 @@ export const CLAUDE_SOCIAL_PROFILES = [
  * their authored proportions. Pinterest and the wide profile are rendered at
  * a proportional scale so the final bitmap remains crisp at its exact preset.
  */
-export function adaptBundledClaudeHtml(html: string, profile: typeof CLAUDE_SOCIAL_PROFILES[number]): string {
+export function adaptBundledClaudeHtml(html: string, profile: ClaudeSocialProfile): string {
   const templateMatch = html.match(/(<script type="__bundler\/template">\s*)([\s\S]*?)(\s*<\/script>)/);
-  if (!templateMatch) throw new Error("Bundled Claude template was not found");
+  if (!templateMatch) return adaptClaudePages(html, profile);
   let innerHtml: string;
   try {
     innerHtml = JSON.parse(templateMatch[2]!.trim()) as string;
   } catch {
     throw new Error("Bundled Claude template contains invalid JSON");
   }
-  let pageCount = 0;
-  const adapted = innerHtml.replace(/<section data-document-role="page"[\s\S]*?<\/section>/g, (section) => {
-    pageCount += 1;
-    return adaptClaudeSection(section, profile);
-  });
-  if (pageCount === 0) throw new Error("Bundled Claude template contains no renderable pages");
+  const adapted = adaptClaudePages(innerHtml, profile);
   return html.replace(templateMatch[0], `${templateMatch[1]}${JSON.stringify(adapted)}${templateMatch[3]}`);
 }
 
-function adaptClaudeSection(section: string, profile: typeof CLAUDE_SOCIAL_PROFILES[number]): string {
+function adaptClaudePages(html: string, profile: ClaudeSocialProfile): string {
+  let pageCount = 0;
+  const adapted = html.replace(/<section data-document-role="page"[\s\S]*?<\/section>/g, (section) => {
+    pageCount += 1;
+    return adaptClaudeSection(section, profile);
+  });
+  if (pageCount === 0) throw new Error("Claude export contains no renderable pages");
+  return adapted;
+}
+
+function adaptClaudeSection(section: string, profile: ClaudeSocialProfile): string {
   const deltaX = profile.logicalWidth - 1080;
   const deltaY = profile.logicalHeight - 1080;
   const scaleX = profile.width / profile.logicalWidth;
   const scaleY = profile.height / profile.logicalHeight;
-  if (Math.abs(scaleX - scaleY) > 0.000001) throw new Error(`Profile ${profile.preset} would stretch the design`);
+  if (Math.abs(scaleX - scaleY) > 0.001) throw new Error(`Profile ${profile.preset} would stretch the design`);
   let adapted = section.replace(/(<section data-document-role="page"[^>]*style=")([^"]*)(")/, (_match, start, style, end) => {
     let next = String(style)
       .replace(/width:\s*1080px/, `width:${profile.logicalWidth}px`)
       .replace(/height:\s*1080px/, `height:${profile.logicalHeight}px`);
-    if (!/width:\s*\d+px/.test(next) || !/height:\s*\d+px/.test(next)) throw new Error("Claude page has no explicit pixel dimensions");
-    if (scaleX !== 1) next += `;transform:scale(${scaleX});transform-origin:top left`;
+    if (!/width:\s*\d+(?:\.\d+)?px/.test(next) || !/height:\s*\d+(?:\.\d+)?px/.test(next)) throw new Error("Claude page has no explicit pixel dimensions");
+    if (scaleX !== 1) next += `;zoom:${scaleX}`;
     return `${start}${next}${end}`;
   });
   if (deltaY) adapted = adapted.replace(/top:\s*(\d+)px/g, (match, raw) => Number(raw) > 540 ? `top:${Number(raw) + deltaY}px` : match);
@@ -169,26 +191,24 @@ export async function prepareClaudeDesignHtml(html: string, outputInput: string,
   return { manifest: manifestPath, pages: canvas.count, canvas: { width: canvas.width, height: canvas.height }, preset };
 }
 
-export async function prepareClaudeDesignZip(zipInput: string, outputInput: string, brand = "imported-design"): Promise<PreparedClaudeJobs> {
+async function prepareSocialVariants(
+  html: string,
+  outputInput: string,
+  brand: string,
+  requestedPresets?: readonly string[]
+): Promise<{ variants: PreparedClaudeJobs["variants"]; pages: number; sourceCanvas: { width: number; height: number } }> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(brand)) throw new Error("brand must be a lowercase slug");
-  const zipPath = path.resolve(zipInput);
   const outputRoot = path.resolve(outputInput);
-  const listing = String(await unzip(["-Z1", zipPath]));
-  const entries = listing.split(/\r?\n/).filter(Boolean);
-  validateZipEntries(entries);
-
-  const bundledCandidates = entries.filter((entry) => /(?:^|\/)[^/]+-export-bundled\.html$/i.test(entry));
-  if (bundledCandidates.length !== 1) throw new Error(`Expected exactly one bundled Claude HTML export, found ${bundledCandidates.length}`);
-  const html = String(await unzip(["-p", zipPath, bundledCandidates[0]!]));
   const canvas = detectHtmlPages(html);
+  if (canvas.width !== 1080 || canvas.height !== 1080) throw new Error(`Multi-format Claude production requires an approved 1080x1080 source canvas, got ${canvas.width}x${canvas.height}`);
   const requiredFonts = detectRequiredFontFamilies(html);
-
-  if (canvas.width !== 1080 || canvas.height !== 1080) throw new Error(`Multi-format Claude ZIP production requires an approved 1080x1080 source canvas, got ${canvas.width}x${canvas.height}`);
   const variants: PreparedClaudeJobs["variants"] = [];
-  for (const profile of CLAUDE_SOCIAL_PROFILES) {
+  for (const profile of selectClaudeSocialProfiles(requestedPresets)) {
     const variantRoot = path.join(outputRoot, `${profile.preset}-source`);
     await mkdir(path.join(variantRoot, "source"), { recursive: true });
-    const variantHtml = profile.preset === "instagram_square" ? html : adaptBundledClaudeHtml(html, profile);
+    const variantHtml = profile.logicalWidth === 1080 && profile.logicalHeight === 1080 && profile.width === 1080
+      ? html
+      : adaptBundledClaudeHtml(html, profile);
     await writeFile(path.join(variantRoot, "source", "index.html"), variantHtml);
     const manifest = {
       schema_version: 1,
@@ -201,21 +221,53 @@ export async function prepareClaudeDesignZip(zipInput: string, outputInput: stri
       animation: false,
       transparent_background: false,
       ...(requiredFonts.length ? { required_fonts: requiredFonts } : {}),
-      outputs: [{ preset: profile.preset, mode: "exact" }]
+      outputs: [{ preset: profile.preset, mode: "exact", ...((profile.preset.endsWith("_reel")) ? { duration_seconds: 5, frame_rate: 30 } : {}) }]
     };
     const manifestPath = path.join(variantRoot, "manifest.json");
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     variants.push({ preset: profile.preset, manifest: manifestPath, pages: canvas.count, canvas: { width: profile.width, height: profile.height } });
   }
+  return { variants, pages: canvas.count, sourceCanvas: { width: canvas.width, height: canvas.height } };
+}
 
-  const square = variants.find((variant) => variant.preset === "instagram_square")!;
-  const pinterestVariant = variants.find((variant) => variant.preset === "pinterest_standard")!;
+export async function prepareClaudeDesignHtmlVariants(
+  html: string,
+  outputInput: string,
+  brand = "imported-design",
+  requestedPresets?: readonly string[]
+): Promise<PreparedClaudeJobs> {
+  const prepared = await prepareSocialVariants(html, outputInput, brand, requestedPresets);
+  const square = prepared.variants.find((variant) => variant.preset === "instagram_square") ?? prepared.variants[0]!;
+  const pinterest = prepared.variants.find((variant) => variant.preset === "pinterest_standard");
+  return {
+    archive: "",
+    square: { manifest: square.manifest, pages: square.pages, canvas: square.canvas },
+    ...(pinterest ? { pinterest: { manifest: pinterest.manifest, pages: pinterest.pages, source_dimensions: prepared.sourceCanvas } } : {}),
+    variants: prepared.variants,
+    missing_approved_compositions: []
+  };
+}
+
+export async function prepareClaudeDesignZip(zipInput: string, outputInput: string, brand = "imported-design", requestedPresets?: readonly string[]): Promise<PreparedClaudeJobs> {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(brand)) throw new Error("brand must be a lowercase slug");
+  const zipPath = path.resolve(zipInput);
+  const outputRoot = path.resolve(outputInput);
+  const listing = String(await unzip(["-Z1", zipPath]));
+  const entries = listing.split(/\r?\n/).filter(Boolean);
+  validateZipEntries(entries);
+
+  const bundledCandidates = entries.filter((entry) => /(?:^|\/)[^/]+-export-bundled\.html$/i.test(entry));
+  if (bundledCandidates.length !== 1) throw new Error(`Expected exactly one bundled Claude HTML export, found ${bundledCandidates.length}`);
+  const html = String(await unzip(["-p", zipPath, bundledCandidates[0]!]));
+  const prepared = await prepareSocialVariants(html, outputRoot, brand, requestedPresets);
+  const square = prepared.variants.find((variant) => variant.preset === "instagram_square") ?? prepared.variants[0]!;
+  const pinterestVariant = prepared.variants.find((variant) => variant.preset === "pinterest_standard");
 
   return {
     archive: zipPath,
     square: { manifest: square.manifest, pages: square.pages, canvas: square.canvas },
-    pinterest: { manifest: pinterestVariant.manifest, pages: pinterestVariant.pages, source_dimensions: { width: canvas.width, height: canvas.height } },
-    variants,
+    ...(pinterestVariant ? { pinterest: { manifest: pinterestVariant.manifest, pages: pinterestVariant.pages, source_dimensions: prepared.sourceCanvas } } : {}),
+    variants: prepared.variants,
     missing_approved_compositions: []
   };
 }

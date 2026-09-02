@@ -31,6 +31,9 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Install video tooling
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Run unit tests
         run: npm test
 
@@ -43,21 +46,24 @@ jobs:
       - name: Prepare jobs from the ZIP
         run: node dist/src/cli.js prepare-claude-zip work/ci-input.zip work/ci-jobs ci-fixture | tee work/ci-import-report.json
 
-      - name: Render all square pages
-        run: node dist/src/cli.js work/ci-jobs/square-source/manifest.json
-
-      - name: Render all Pinterest pages
-        run: node dist/src/cli.js work/ci-jobs/pinterest-source/manifest.json
+      - name: Render every requested social variant
+        run: |
+          for manifest in work/ci-jobs/*-source/manifest.json; do
+            node dist/src/cli.js "$manifest"
+          done
 
       - name: Verify multi-page QA reports
         run: |
-          node scripts/assert-qa.mjs work/ci-jobs/square-source/renders/qa-report.json 3
-          node scripts/assert-qa.mjs work/ci-jobs/pinterest-source/renders/qa-report.json 3
+          for report in work/ci-jobs/*-source/renders/qa-report.json; do
+            node scripts/assert-qa.mjs "$report" 3
+          done
 
       - name: Create visual contact sheets
         run: |
-          node scripts/create-contact-sheet.mjs work/ci-jobs/square-source/renders/qa-report.json
-          node scripts/create-contact-sheet.mjs work/ci-jobs/pinterest-source/renders/qa-report.json
+          for report in work/ci-jobs/*-source/renders/qa-report.json; do
+            case "$report" in *reel-source*) continue ;; esac
+            node scripts/create-contact-sheet.mjs "$report"
+          done
 
       - name: Upload render evidence
         if: always()

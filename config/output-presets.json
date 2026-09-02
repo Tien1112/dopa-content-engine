@@ -3,6 +3,11 @@
   "instagram_square": { "width": 1080, "height": 1080, "format": "png" },
   "instagram_story": { "width": 1080, "height": 1920, "format": "png" },
   "instagram_reel": { "width": 1080, "height": 1920, "format": "mp4" },
+  "facebook_feed": { "width": 1080, "height": 1350, "format": "png" },
+  "facebook_landscape": { "width": 1200, "height": 630, "format": "png" },
+  "facebook_story": { "width": 1080, "height": 1920, "format": "png" },
+  "facebook_reel": { "width": 1080, "height": 1920, "format": "mp4" },
   "pinterest_standard": { "width": 1000, "height": 1500, "format": "png" },
-  "youtube_facebook_wide": { "width": 3840, "height": 2160, "format": "png" }
+  "etsy_listing_landscape": { "width": 2667, "height": 2000, "format": "png" },
+  "etsy_listing_square": { "width": 2000, "height": 2000, "format": "png" }
 }

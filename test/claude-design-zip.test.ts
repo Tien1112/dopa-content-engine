@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, readPngDimensions, validateZipEntries } from "../src/adapters/claude-design-zip.js";
+import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, readPngDimensions, selectClaudeSocialProfiles, validateZipEntries } from "../src/adapters/claude-design-zip.js";
 
 test("rejects ZIP path traversal before extraction", () => {
   assert.throws(() => validateZipEntries(["safe/file.html", "../escape.html"]), /Unsafe ZIP entry/);
@@ -44,14 +44,25 @@ test("maps only approved exact canvases to output presets", () => {
   assert.throws(() => exactPresetForCanvas(1200, 1200), /No approved exact output preset/);
 });
 
-test("defines the complete static social output set with exact dimensions", () => {
+test("defines the complete first-release social output set with exact dimensions", () => {
   assert.deepEqual(CLAUDE_SOCIAL_PROFILES.map(({ preset, width, height }) => ({ preset, width, height })), [
     { preset: "instagram_square", width: 1080, height: 1080 },
     { preset: "instagram_feed", width: 1080, height: 1350 },
     { preset: "instagram_story", width: 1080, height: 1920 },
+    { preset: "instagram_reel", width: 1080, height: 1920 },
+    { preset: "facebook_feed", width: 1080, height: 1350 },
+    { preset: "facebook_landscape", width: 1200, height: 630 },
+    { preset: "facebook_story", width: 1080, height: 1920 },
+    { preset: "facebook_reel", width: 1080, height: 1920 },
     { preset: "pinterest_standard", width: 1000, height: 1500 },
-    { preset: "youtube_facebook_wide", width: 3840, height: 2160 }
+    { preset: "etsy_listing_landscape", width: 2667, height: 2000 },
+    { preset: "etsy_listing_square", width: 2000, height: 2000 }
   ]);
+});
+
+test("renders only Hub-requested presets and rejects unknown keys", () => {
+  assert.deepEqual(selectClaudeSocialProfiles(["facebook_landscape", "etsy_listing_square"]).map((profile) => profile.preset), ["facebook_landscape", "etsy_listing_square"]);
+  assert.throws(() => selectClaudeSocialProfiles(["made_up_format"]), /Unsupported requested preset/);
 });
 
 test("adapts square Claude pages without non-proportional scaling", () => {
@@ -61,9 +72,10 @@ test("adapts square Claude pages without non-proportional scaling", () => {
   assert.match(feed, /height:1350px/);
   assert.match(feed, /top:1170px/);
   assert.doesNotMatch(feed, /scaleX|scaleY/);
-  const pinterest = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[3]);
-  assert.match(pinterest, /transform:scale\(0\.9259259259259259\)/);
-  const wide = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[4]);
-  assert.match(wide, /width:1920px/);
-  assert.match(wide, /transform:scale\(2\)/);
+  const pinterest = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[8]);
+  assert.match(pinterest, /zoom:0\.9259259259259259/);
+  const landscape = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[5]);
+  assert.match(landscape, /width:1200px/);
+  const etsy = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[9]);
+  assert.match(etsy, /width:1440\.18px/);
 });

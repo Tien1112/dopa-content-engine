@@ -4,6 +4,7 @@ export interface RenderJobRow {
   campaign_id: string;
   revision_id: string;
   source_file_name: string;
+  requested_formats: string[];
   instruction: string | null;
   status: string;
   source_download_url: string;
@@ -14,7 +15,7 @@ export interface PublishedOutput {
   design_code: string;
   format_key: string;
   file_name: string;
-  mime_type: "image/png";
+  mime_type: "image/png" | "video/mp4";
   byte_size: number;
   width: number;
   height: number;

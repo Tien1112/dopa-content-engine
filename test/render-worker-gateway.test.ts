@@ -95,6 +95,7 @@ test("source downloads are bounded and must not be empty", async () => {
       campaign_id: "campaign",
       revision_id: "revision",
       source_file_name: "source.zip",
+      requested_formats: ["instagram_feed"],
       instruction: null,
       status: "wordt_gerenderd",
       source_download_url: "https://download.example/source.zip"

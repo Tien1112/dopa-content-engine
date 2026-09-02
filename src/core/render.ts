@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
@@ -6,6 +6,7 @@ import { loadPresets } from "./config.js";
 import { inspectPackage } from "./inspect.js";
 import { loadManifest, resolveInsidePackage } from "./manifest.js";
 import { verifyPng } from "./qa.js";
+import { createStaticMp4, verifyMp4 } from "./video.js";
 import type { OutputQa, QaReport } from "./types.js";
 
 interface RenderTarget {
@@ -26,7 +27,7 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
   const reportPath = path.join(outputDir, "qa-report.json");
   const finish = async () => { report.status = report.outputs.length > 0 && report.outputs.every((o) => o.qa === "passed") ? "passed" : "failed"; await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`); return report; };
   if (inspection.issues.length) { report.outputs.push(failed("preflight", inspection.issues)); return finish(); }
-  if (manifest.animation) { report.outputs.push(failed("animation", ["Animation rendering is not implemented in the static Phase 1 slice"])); return finish(); }
+  if (manifest.animation) { report.outputs.push(failed("animation", ["Animated source capture is not implemented; static Reel MP4 output is supported"])); return finish(); }
   const presets = await loadPresets();
   let browser;
   try {
@@ -35,7 +36,6 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
       const errors: string[] = [];
       const preset = presets[request.preset];
       if (!preset) { report.outputs.push(failed(request.preset, [`Unknown preset: ${request.preset}`])); continue; }
-      if (preset.format !== "png") { report.outputs.push(failed(request.preset, [`Static slice cannot render ${preset.format}`])); continue; }
       const mode = request.mode ?? "exact";
       if (mode !== "exact") { report.outputs.push(failed(request.preset, [`Render mode ${mode} is not implemented; refusing to distort the design`])); continue; }
       if (preset.width !== manifest.canvas.width || preset.height !== manifest.canvas.height) { report.outputs.push(failed(request.preset, [`exact mode requires source canvas ${manifest.canvas.width}x${manifest.canvas.height} to equal preset ${preset.width}x${preset.height}`])); continue; }
@@ -71,15 +71,22 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
             if (!box) targetErrors.push(`Page ${target.label} is not visible`);
             else if (Math.round(box.width) !== manifest.canvas.width || Math.round(box.height) !== manifest.canvas.height) targetErrors.push(`Page ${target.label} expected ${manifest.canvas.width}x${manifest.canvas.height}, got ${Math.round(box.width)}x${Math.round(box.height)}`);
           }
-          const outputName = target.label ? `${target.label}-${request.preset}.png` : `${request.preset}.png`;
+          const outputName = target.label ? `${target.label}-${request.preset}.${preset.format}` : `${request.preset}.${preset.format}`;
           const outputFile = path.join(outputDir, outputName);
+          const posterFile = preset.format === "mp4" ? path.join(outputDir, `.${path.parse(outputName).name}.poster.png`) : outputFile;
           if (!targetErrors.length) {
-            if (locator) await locator.screenshot({ path: outputFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "disabled" });
-            else await page.screenshot({ path: outputFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "disabled" });
+            if (locator) await locator.screenshot({ path: posterFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "disabled" });
+            else await page.screenshot({ path: posterFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "disabled" });
           }
           let qa: OutputQa = { preset: request.preset, ...(target.label ? { page_label: target.label } : {}), file: path.relative(packageRoot, outputFile), fonts_loaded: unavailableFonts.length === 0, assets_loaded: failedResources.length === 0, qa: "failed", errors: targetErrors };
           if (!targetErrors.length) {
-            qa = await verifyPng({ preset: request.preset, ...(target.label ? { pageLabel: target.label } : {}), file: outputFile, reportFile: path.relative(packageRoot, outputFile), expectedWidth: preset.width, expectedHeight: preset.height, requireAlpha: manifest.transparent_background ?? false, fontsLoaded: true, assetsLoaded: true });
+            if (preset.format === "png") {
+              qa = await verifyPng({ preset: request.preset, ...(target.label ? { pageLabel: target.label } : {}), file: outputFile, reportFile: path.relative(packageRoot, outputFile), expectedWidth: preset.width, expectedHeight: preset.height, requireAlpha: manifest.transparent_background ?? false, fontsLoaded: true, assetsLoaded: true });
+            } else {
+              await createStaticMp4(posterFile, outputFile, request.duration_seconds ?? 5, request.frame_rate ?? 30);
+              qa = await verifyMp4({ preset: request.preset, ...(target.label ? { pageLabel: target.label } : {}), file: outputFile, reportFile: path.relative(packageRoot, outputFile), expectedWidth: preset.width, expectedHeight: preset.height, fontsLoaded: true, assetsLoaded: true });
+              await rm(posterFile, { force: true });
+            }
           }
           report.outputs.push(qa);
         }
