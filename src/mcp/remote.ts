@@ -84,7 +84,7 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
 
   server.registerTool("dopa_queue_approved_revision", {
     title: "Queue one approved Dopa revision",
-    description: "Use only after manual approval in Lovable and a separate explicit scheduling request. This creates internal idempotent dispatch jobs; it does not itself post to Meta, Tailwind or Google.",
+    description: "Use only after manual approval in Lovable and a separate explicit scheduling request. This creates internal idempotent dispatch jobs; it does not itself post to the channel APIs.",
     inputSchema: {
       revision_id: z.string().uuid(),
       confirmation: z.literal(CONFIRMATION),
