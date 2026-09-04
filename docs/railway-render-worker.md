@@ -53,8 +53,11 @@ revoke all on function public.claim_render_job() from public, anon, authenticate
 grant execute on function public.claim_render_job() to service_role;
 ```
 
-The worker accepts the approved 1080×1080 Claude Design export and deterministically
-reflows its structured page elements into exactly the presets requested by the Hub.
+The worker accepts the approved 1080×1080 Claude Design HTML/ZIP export or a flat
+square PNG between 512×512 and 4096×4096 pixels. It deterministically reflows
+structured page elements into exactly the presets requested by the Hub. A flat PNG
+has no editable layers, so it stays fully visible and proportional while a softened
+copy of the same image fills any extra canvas space.
 The first-release contract includes Instagram, Facebook, Pinterest, and Etsy images,
 plus static H.264 MP4 Reel outputs. It never stretches a bitmap or silently relabels
 the square source as another format. Every output must pass exact size, type, asset,

@@ -4,7 +4,7 @@ A deterministic production rendering layer for approved Claude Design exports. C
 
 ## Social production status
 
-The production worker accepts a multi-page 1080×1080 Claude Design HTML/ZIP export and creates the exact Hub-requested Instagram, Facebook, Pinterest, and Etsy variants. Structured elements are reflowed without non-proportional stretching. PNG images and static H.264 Reel MP4s receive machine-readable dimension, type, file, font, and asset QA before upload. Animated source capture, POD, `contain`, and `cover` remain separate work and are not silently approximated.
+The production worker accepts a multi-page 1080×1080 Claude Design HTML/ZIP export or a flat square PNG and creates the exact Hub-requested Instagram, Facebook, Pinterest, and Etsy variants. Structured HTML elements are reflowed without non-proportional stretching. A flat PNG has no editable layers, so the approved square stays fully visible and proportional while a softened copy fills any extra canvas space. PNG images and static H.264 Reel MP4s receive machine-readable dimension, type, file, font, and asset QA before upload. Animated source capture, POD, `contain`, and `cover` remain separate work and are not silently approximated.
 
 ## Requirements
 
@@ -49,6 +49,8 @@ node dist/src/cli.js prepare-claude-zip "/path/to/design.zip" "/path/to/prepared
 ```
 
 The adapter validates archive paths, selects the single self-contained bundled HTML export, inventories its approved canvases, and creates a bounded multi-page square job. If the ZIP contains approved 2:3 PNG compositions, it also creates a Pinterest job that proportionally reduces them to 1000×1500 without changing their aspect ratio. It reports absent 4:5 and 9:16 compositions instead of manufacturing or stretching them.
+
+The hosted worker also accepts one square `.png` between 512×512 and 4096×4096 pixels. Use this for quick production from a flattened Claude Design image. Use HTML/ZIP when text and image layers must be reflowed semantically for each channel.
 
 ## GitHub render proof
 

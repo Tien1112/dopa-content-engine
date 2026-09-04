@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
-import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, readPngDimensions, selectClaudeSocialProfiles, validateZipEntries } from "../src/adapters/claude-design-zip.js";
+import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, prepareClaudeDesignPngVariants, readPngDimensions, selectClaudeSocialProfiles, validateZipEntries } from "../src/adapters/claude-design-zip.js";
 
 test("rejects ZIP path traversal before extraction", () => {
   assert.throws(() => validateZipEntries(["safe/file.html", "../escape.html"]), /Unsafe ZIP entry/);
@@ -78,4 +81,28 @@ test("adapts square Claude pages without non-proportional scaling", () => {
   assert.match(landscape, /width:1200px/);
   const etsy = adaptBundledClaudeHtml(bundled, CLAUDE_SOCIAL_PROFILES[9]);
   assert.match(etsy, /width:1440\.18px/);
+});
+
+test("prepares a square PNG as proportional foreground on every requested canvas", async () => {
+  const png = Buffer.alloc(26);
+  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+  png.writeUInt32BE(1080, 16);
+  png.writeUInt32BE(1080, 20);
+  png[25] = 6;
+  const root = await mkdtemp(path.join(tmpdir(), "dopa-flat-png-"));
+  const prepared = await prepareClaudeDesignPngVariants(png, root, "dopa", ["instagram_feed", "facebook_landscape"]);
+  assert.deepEqual(prepared.variants.map((variant) => variant.preset), ["instagram_feed", "facebook_landscape"]);
+  const html = await readFile(path.join(root, "instagram_feed-source", "source", "index.html"), "utf8");
+  assert.match(html, /width:1080px;height:1350px/);
+  assert.match(html, /class="foreground"/);
+  assert.match(html, /object-fit:contain/);
+  assert.match(html, /class="background"/);
+});
+
+test("flat PNG intake rejects non-square and implausible source dimensions", async () => {
+  const png = Buffer.alloc(26);
+  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+  png.writeUInt32BE(1080, 16);
+  png.writeUInt32BE(1350, 20);
+  await assert.rejects(() => prepareClaudeDesignPngVariants(png, tmpdir()), /requires a square source/);
 });

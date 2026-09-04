@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { prepareClaudeDesignHtmlVariants, prepareClaudeDesignZip } from "../adapters/claude-design-zip.js";
+import { prepareClaudeDesignHtmlVariants, prepareClaudeDesignPngVariants, prepareClaudeDesignZip } from "../adapters/claude-design-zip.js";
 import { renderJob } from "../core/render.js";
 import type { OutputQa, QaReport } from "../core/types.js";
 import { RenderGatewayStore, type RenderJobRow, type RenderWorkerStore } from "./gateway.js";
@@ -24,8 +24,11 @@ export async function processRenderJob(store: RenderWorkerStore, job: RenderJobR
     } else if (sourceName.toLowerCase().endsWith(".html")) {
       const prepared = await prepareClaudeDesignHtmlVariants(sourceBytes.toString("utf8"), path.join(preparedRoot, "html"), "dopa", job.requested_formats);
       manifests.push(...prepared.variants.map((variant) => variant.manifest));
+    } else if (sourceName.toLowerCase().endsWith(".png")) {
+      const prepared = await prepareClaudeDesignPngVariants(sourceBytes, path.join(preparedRoot, "png"), "dopa", job.requested_formats);
+      manifests.push(...prepared.variants.map((variant) => variant.manifest));
     } else {
-      throw new Error("Only .zip and .html source packages are supported");
+      throw new Error("Only .zip, .html and square .png source files are supported");
     }
 
     console.log(`[render:${job.id}] package prepared; ${manifests.length} approved composition(s) queued`);

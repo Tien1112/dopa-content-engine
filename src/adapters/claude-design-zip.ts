@@ -248,6 +248,83 @@ export async function prepareClaudeDesignHtmlVariants(
   };
 }
 
+/**
+ * Prepare one flat square PNG for every requested social preset.
+ *
+ * A PNG has no editable text or layer positions, so it cannot be semantically
+ * reflowed like a Claude HTML export. The approved source therefore stays
+ * completely visible and proportional. Empty canvas space is filled with a
+ * soft, cropped copy of the same artwork; the foreground is never stretched or
+ * cropped. This is deterministic and intentionally not generative.
+ */
+export async function prepareClaudeDesignPngVariants(
+  png: Buffer,
+  outputInput: string,
+  brand = "imported-design",
+  requestedPresets?: readonly string[]
+): Promise<PreparedClaudeJobs> {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(brand)) throw new Error("brand must be a lowercase slug");
+  const dimensions = readPngDimensions(png);
+  if (dimensions.width !== dimensions.height) {
+    throw new Error(`Flat PNG production requires a square source, got ${dimensions.width}x${dimensions.height}`);
+  }
+  if (dimensions.width < 512 || dimensions.width > 4096) {
+    throw new Error(`Square PNG side must be between 512 and 4096 pixels, got ${dimensions.width}`);
+  }
+
+  const outputRoot = path.resolve(outputInput);
+  const variants: PreparedClaudeJobs["variants"] = [];
+  for (const profile of selectClaudeSocialProfiles(requestedPresets)) {
+    const variantRoot = path.join(outputRoot, `${profile.preset}-source`);
+    const sourceRoot = path.join(variantRoot, "source");
+    await mkdir(sourceRoot, { recursive: true });
+    await writeFile(path.join(sourceRoot, "source.png"), png);
+    const html = flatPngHtml(profile.width, profile.height);
+    await writeFile(path.join(sourceRoot, "index.html"), html);
+    const manifest = {
+      schema_version: 1,
+      content_id: `${brand}-png-${profile.preset}-approved`,
+      brand,
+      version: 1,
+      source: "source/index.html",
+      canvas: { width: profile.width, height: profile.height },
+      pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: 1 },
+      animation: false,
+      transparent_background: false,
+      outputs: [{
+        preset: profile.preset,
+        mode: "exact",
+        ...(profile.preset.endsWith("_reel") ? { duration_seconds: 5, frame_rate: 30 } : {})
+      }]
+    };
+    const manifestPath = path.join(variantRoot, "manifest.json");
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    variants.push({ preset: profile.preset, manifest: manifestPath, pages: 1, canvas: { width: profile.width, height: profile.height } });
+  }
+  const square = variants.find((variant) => variant.preset === "instagram_square") ?? variants[0]!;
+  const pinterest = variants.find((variant) => variant.preset === "pinterest_standard");
+  return {
+    archive: "",
+    square: { manifest: square.manifest, pages: 1, canvas: square.canvas },
+    ...(pinterest ? { pinterest: { manifest: pinterest.manifest, pages: 1, source_dimensions: dimensions } } : {}),
+    variants,
+    missing_approved_compositions: []
+  };
+}
+
+function flatPngHtml(width: number, height: number): string {
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff}
+[data-document-role=page]{position:relative;width:${width}px;height:${height}px;overflow:hidden;background:#fff}
+.background{position:absolute;inset:-7%;width:114%;height:114%;object-fit:cover;filter:blur(72px);opacity:.42}
+.foreground{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+</style></head><body><section data-document-role="page" data-label="01">
+<img class="background" src="source.png" alt="" aria-hidden="true">
+<img class="foreground" src="source.png" alt="Approved source design">
+</section></body></html>`;
+}
+
 export async function prepareClaudeDesignZip(zipInput: string, outputInput: string, brand = "imported-design", requestedPresets?: readonly string[]): Promise<PreparedClaudeJobs> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(brand)) throw new Error("brand must be a lowercase slug");
   const zipPath = path.resolve(zipInput);
