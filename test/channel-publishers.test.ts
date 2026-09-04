@@ -15,7 +15,7 @@ test("Pinterest publisher sends one approved image Pin to the configured board",
     return new Response(JSON.stringify({ id: "pin-123", link: "https://pinterest.example/pin-123" }), { status: 201, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
   const publisher = new PinterestPublisher({ accounts: { dopa: { access_token_env: "TEST_PINTEREST_TOKEN", board_id: "board-1" } } }, fetcher);
-  const item: ContentPlanItem = { item_id: "p1", channel: "pinterest", content_type: "pin", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa Pin", message: "Beschrijving", alt_text: "Alt", destination_url: "https://dopa.example/product" } };
+  const item: ContentPlanItem = { item_id: "p1", channel: "pinterest", content_type: "pin", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa Pin", message: "Beschrijving", alt_text: "Alt", destination_url: "https://dopa.example/product" }, provider_payload: { board_id: "board-1" } };
   const receipt = await publisher.publish(item);
   assert.equal(receipt.platform_id, "pin-123");
   assert.equal(calls[0]!.url, "https://api.pinterest.com/v5/pins");
@@ -32,7 +32,7 @@ test("Google Business publisher creates a standard local post with CTA", async (
     return new Response(JSON.stringify({ name: "accounts/1/locations/2/localPosts/3", searchUrl: "https://google.example/post/3" }), { status: 200, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
   const publisher = new GoogleBusinessPublisher({ accounts: { dopa: { access_token_env: "TEST_GOOGLE_TOKEN", account_id: "1", location_id: "2" } } }, fetcher);
-  const item: ContentPlanItem = { item_id: "g1", channel: "google_business_profile", content_type: "update", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { message: "Nieuwe Dopa collectie", destination_url: "https://dopa.example/new", call_to_action: "shop" } };
+  const item: ContentPlanItem = { item_id: "g1", channel: "google_business_profile", content_type: "update", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { message: "Nieuwe Dopa collectie", destination_url: "https://dopa.example/new", call_to_action: "shop" }, provider_payload: { account_id: "1", location_id: "2", topic_type: "STANDARD" } };
   const receipt = await publisher.publish(item);
   assert.equal(receipt.platform_id, "accounts/1/locations/2/localPosts/3");
   assert.equal(request!.url, "https://mybusiness.googleapis.com/v4/accounts/1/locations/2/localPosts");
@@ -54,7 +54,7 @@ test("Etsy publisher creates draft, uploads approved image and then activates", 
     return new Response("not found", { status: 404 });
   }) as typeof fetch;
   const publisher = new EtsyPublisher({ accounts: { dopa: { api_key_env: "TEST_ETSY_KEY", access_token_env: "TEST_ETSY_TOKEN", shop_id: "123" } } }, fetcher);
-  const item: ContentPlanItem = { item_id: "e1", channel: "etsy", content_type: "listing", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa kaart", message: "Beschrijving" }, provider_payload: { price: 12.5, quantity: 4, taxonomy_id: 1234, who_made: "i_did", when_made: "2020_2026", is_supply: false, publish: true } };
+  const item: ContentPlanItem = { item_id: "e1", channel: "etsy", content_type: "listing", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa kaart", message: "Beschrijving" }, provider_payload: { price: 12.5, quantity: 4, taxonomy_id: 1234, who_made: "i_did", when_made: "2020_2026", is_supply: false, state: "active", activate_confirmed: true, publish: true } };
   const receipt = await publisher.publish(item);
   assert.equal(receipt.platform_id, "456");
   assert.deepEqual(calls, [
@@ -63,4 +63,18 @@ test("Etsy publisher creates draft, uploads approved image and then activates", 
     "POST https://openapi.etsy.com/v3/application/shops/123/listings/456/images",
     "PATCH https://openapi.etsy.com/v3/application/shops/123/listings/456"
   ]);
+});
+
+test("Pinterest refuses a board that differs from the approved account route", async () => {
+  process.env.TEST_PINTEREST_TOKEN = "pin-token";
+  const publisher = new PinterestPublisher({ accounts: { dopa: { access_token_env: "TEST_PINTEREST_TOKEN", board_id: "board-1" } } });
+  const item: ContentPlanItem = { item_id: "p2", channel: "pinterest", content_type: "pin", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa Pin", message: "Beschrijving", destination_url: "https://dopa.example/product" }, provider_payload: { board_id: "another-board" } };
+  await assert.rejects(() => publisher.publish(item), /board_id does not match/);
+});
+
+test("Google Business refuses a location that differs from the approved account route", async () => {
+  process.env.TEST_GOOGLE_TOKEN = "google-token";
+  const publisher = new GoogleBusinessPublisher({ accounts: { dopa: { access_token_env: "TEST_GOOGLE_TOKEN", account_id: "1", location_id: "2" } } });
+  const item: ContentPlanItem = { item_id: "g2", channel: "google_business_profile", content_type: "update", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { message: "Update" }, provider_payload: { account_id: "1", location_id: "999", topic_type: "STANDARD" } };
+  await assert.rejects(() => publisher.publish(item), /account\/location does not match/);
 });

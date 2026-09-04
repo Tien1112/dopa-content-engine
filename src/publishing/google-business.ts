@@ -24,9 +24,16 @@ export class GoogleBusinessPublisher {
     if (item.media.length > 1) throw new Error("Google Business update supports at most one image in this adapter");
     const account = this.config.accounts[item.account_ref];
     if (!account) throw new Error(`No Google Business configuration for account_ref ${item.account_ref}`);
+    const requestedAccount = String(item.provider_payload?.account_id ?? "").trim();
+    const requestedLocation = String(item.provider_payload?.location_id ?? "").trim();
+    const topicType = String(item.provider_payload?.topic_type ?? "").trim();
+    if (requestedAccount !== account.account_id || requestedLocation !== account.location_id) {
+      throw new Error("Google Business account/location does not match the configured account route");
+    }
+    if (topicType !== "STANDARD") throw new Error("Google Business supports only STANDARD updates");
     const token = process.env[account.access_token_env];
     if (!token) throw new Error(`Missing Google access token environment variable ${account.access_token_env}`);
-    const parent = `accounts/${safeId(account.account_id)}/locations/${safeId(account.location_id)}`;
+    const parent = `accounts/${safeId(requestedAccount)}/locations/${safeId(requestedLocation)}`;
     const payload: Record<string, unknown> = {
       languageCode: account.language_code ?? "nl-NL",
       summary: item.copy.message.trim().slice(0, 1500),

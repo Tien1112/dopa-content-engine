@@ -22,6 +22,10 @@ export class PinterestPublisher {
     }
     const account = this.config.accounts[item.account_ref];
     if (!account) throw new Error(`No Pinterest configuration for account_ref ${item.account_ref}`);
+    const requestedBoard = String(item.provider_payload?.board_id ?? "").trim();
+    if (!requestedBoard || requestedBoard !== account.board_id) {
+      throw new Error("Pinterest board_id does not match the configured account route");
+    }
     const token = process.env[account.access_token_env];
     if (!token) throw new Error(`Missing Pinterest token environment variable ${account.access_token_env}`);
     const imageUrl = checkedHttps(item.media[0]!.public_url, "Pinterest image");
@@ -32,7 +36,7 @@ export class PinterestPublisher {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({
-        board_id: account.board_id,
+        board_id: requestedBoard,
         title: title.slice(0, 100),
         description: item.copy.message.trim().slice(0, 500),
         ...(item.copy.alt_text ? { alt_text: item.copy.alt_text.trim().slice(0, 500) } : {}),

@@ -101,7 +101,11 @@ function validatePayload(value: Record<string, unknown> | undefined): EtsyPayloa
   const result: EtsyPayload = {
     price: Number(p.price), quantity: Number(p.quantity), taxonomy_id: Number(p.taxonomy_id),
     who_made: String(p.who_made) as EtsyPayload["who_made"], when_made: String(p.when_made),
-    is_supply: p.is_supply === true, publish: p.publish === true
+    is_supply: p.is_supply === true,
+    publish:
+      p.publish === true &&
+      p.state === "active" &&
+      p.activate_confirmed === true,
   };
   if (!Number.isFinite(result.price) || result.price <= 0) throw new Error("Etsy price must be positive");
   if (!Number.isInteger(result.quantity) || result.quantity < 1) throw new Error("Etsy quantity must be a positive integer");
