@@ -102,7 +102,8 @@ export const CLAUDE_SOCIAL_PROFILES = [
   { preset: "facebook_reel", logicalWidth: 1080, logicalHeight: 1920, width: 1080, height: 1920 },
   { preset: "pinterest_standard", logicalWidth: 1080, logicalHeight: 1620, width: 1000, height: 1500 },
   { preset: "etsy_listing_landscape", logicalWidth: 1440.18, logicalHeight: 1080, width: 2667, height: 2000 },
-  { preset: "etsy_listing_square", logicalWidth: 1080, logicalHeight: 1080, width: 2000, height: 2000 }
+  { preset: "etsy_listing_square", logicalWidth: 1080, logicalHeight: 1080, width: 2000, height: 2000 },
+  { preset: "google_business_standard", logicalWidth: 1440, logicalHeight: 1080, width: 1200, height: 900 }
 ] as const;
 
 type ClaudeSocialProfile = typeof CLAUDE_SOCIAL_PROFILES[number];

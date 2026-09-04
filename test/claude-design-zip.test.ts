@@ -59,7 +59,8 @@ test("defines the complete first-release social output set with exact dimensions
     { preset: "facebook_reel", width: 1080, height: 1920 },
     { preset: "pinterest_standard", width: 1000, height: 1500 },
     { preset: "etsy_listing_landscape", width: 2667, height: 2000 },
-    { preset: "etsy_listing_square", width: 2000, height: 2000 }
+    { preset: "etsy_listing_square", width: 2000, height: 2000 },
+    { preset: "google_business_standard", width: 1200, height: 900 }
   ]);
 });
 
