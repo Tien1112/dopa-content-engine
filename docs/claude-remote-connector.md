@@ -14,14 +14,14 @@ omgeving voor upload, kanaalpreview, downloads en handmatige goedkeuring.
 - Uploaden van het volledige Claude Design ZIP-pakket blijft in Lovable, zodat
   Margot het exacte bronpakket zichtbaar kiest.
 - `queued` of `dispatched` is geen bewijs van een live platformpublicatie.
-- De connector publiceert niet rechtstreeks. Pinterest loopt uiteindelijk via
-  Tailwind; Instagram en Facebook via de apart geconfigureerde Meta-adapter.
+- De connector publiceert niet rechtstreeks. Pinterest, Instagram, Facebook en
+  Google lopen via apart geconfigureerde beveiligde kanaaladapters.
 
 ## Railway-service
 
 Maak naast de render-worker een tweede Railway-service uit dezelfde GitHub-repo.
 
-1. Gebruik branch `codex/claude-zip-ci`.
+1. Gebruik branch `main`.
 2. Zet bij **Config as Code** het configuratiepad op `/railway.mcp.json`. Dit
    kiest `Dockerfile.mcp` en de `/health`-controle, zonder de bestaande
    render-workerconfiguratie te veranderen.
@@ -52,8 +52,8 @@ nodig.
 ## Claude Desktop
 
 Voeg in Claude bij custom connectors de volledige geheime Railway MCP-URL toe.
-Noem de connector `Dopa Content Engine`. Zet daarnaast in dezelfde Claude-chat
-de bestaande Tailwind-connector aan voor Pinterest.
+Noem de connector `Dopa Content Engine`. De Dopa-connector blijft het enige
+bedieningspunt; afzonderlijke providerconnectors zijn niet nodig in Claude.
 
 Eerste veilige test:
 
@@ -71,5 +71,5 @@ goedgekeurd in Lovable. Alleen daarna kan Margot afzonderlijk zeggen:
 
 > PLAN NU DEZE EXACTE VERSIE IN
 
-Totdat Meta en Tailwind echt zijn aangesloten, maakt ook die zin uitsluitend
+Totdat Meta, Pinterest en de overige kanalen echt zijn aangesloten, maakt ook die zin uitsluitend
 een interne outboxopdracht aan.

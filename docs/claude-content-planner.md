@@ -31,7 +31,7 @@ De twee bevestigingen zijn hoofdlettergevoelig in de tool-input. Claude mag ze a
 - Valideert kanaal, contenttype, accountreferentie, tijdzone, media-QA, caption, hashtags en links.
 - Vergrendelt de exacte revisie na goedkeuring met een inhoudshash.
 - Zet goedgekeurde items idempotent in een kanaal-outbox.
-- Laat Claude het exacte Pinterest-outbox-item aan Tailwind doorgeven en Tailwinds echte platform-ID als ontvangstbewijs opslaan.
+- Laat de beveiligde Pinterest-worker het exacte goedgekeurde outbox-item publiceren en de echte platform-ID als ontvangstbewijs opslaan.
 - Meldt eerlijk dat een outbox-item nog geen bewijs van live publicatie is.
 - Geeft Claude per kanaal de volgende dispatch-stap.
 - Maakt een visuele Instagram-rasterpreview en Facebook-tijdlijnpreview.
@@ -41,13 +41,11 @@ De twee bevestigingen zijn hoofdlettergevoelig in de tool-input. Claude mag ze a
 
 | Kanaal | Vanuit Claude | Laatste publicatiestap |
 | --- | --- | --- |
-| Pinterest | Dopa-plan + bestaande Tailwind-connector | Claude roept Tailwind MCP aan met het goedgekeurde Pin-item |
+| Pinterest | Dopa-plan + bordcontrole | Dopa Pinterest API-adapter na OAuth en bordkeuze |
 | Instagram | Dopa-plan + visuele rastercontrole | Dopa Meta Graph-adapter na accountkoppeling |
 | Facebook | Dopa-plan + visuele tijdlijncontrole | Dopa Meta Graph-adapter na accountkoppeling |
 | Google Business Profile | Dopa-plan | Google Local Posts-adapter na OAuth en locatiekeuze |
 | Google Merchant Center | Dopa-promotieplan | Merchant Promotions-adapter; Google beoordeelt de promotie |
-
-Tailwind MCP is een aparte connector in dezelfde Claude-conversatie. Volgens Tailwind moet de connector per chat worden aangezet en moeten de individuele Pinterest-tools onder de connectorinstellingen zijn ingeschakeld.
 
 ## Eenmalige installatie op Margots computer
 
@@ -57,7 +55,7 @@ Tailwind MCP is een aparte connector in dezelfde Claude-conversatie. Volgens Tai
 4. Voeg de inhoud van `config/claude-desktop.mcp.example.json` samen met de bestaande `mcpServers`-configuratie.
 5. Vervang alle drie de voorbeeldpaden door absolute paden op Margots computer.
 6. Sluit Claude Desktop volledig af en start opnieuw.
-7. Open Connectors in een chat en controleer of `dopa-content-planner` en Tailwind aanstaan.
+7. Open Connectors in een chat en controleer of `dopa-content-planner` aanstaat.
 
 Op de computer waarop Claude Desktop draait kan het juiste configuratieblok automatisch worden gemaakt met:
 
@@ -71,11 +69,10 @@ Claude Desktop start de lokale MCP-server zelf. Start `npm run mcp:content-plann
 
 ## Wat nog nodig is voor live publicatie
 
-### Tailwind / Pinterest
+### Pinterest
 
-- Tailwind-account met het juiste Pinterest-profiel.
-- Custom connector `https://mcp.tailwind.ai` geautoriseerd in Claude.
-- Pinterest-tools per chat ingeschakeld.
+- Pinterest OAuth-koppeling voor het juiste Dopa-profiel.
+- Veilige tokenvariabele uitsluitend op de publicatieworker.
 - Definitieve lijst met Pinterest-borden.
 
 ### Instagram en Facebook

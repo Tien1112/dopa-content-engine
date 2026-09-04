@@ -6,13 +6,13 @@ This is a separate layer from Dopa Render. Render produces approved, machine-che
 
 | Destination | Adapter | Purpose |
 | --- | --- | --- |
-| Pinterest | Tailwind MCP | Pins, boards and SmartSchedule |
+| Pinterest | Dopa Pinterest API adapter | Image Pins on approved boards |
 | Instagram | Dopa Meta adapter | Feed posts, carousels, Stories and Reels |
 | Facebook | Dopa Meta adapter | Page posts, carousels, Stories and Reels |
 | Google Business Profile | Dopa Google adapter | Updates, offers and events |
 | Google Merchant Center | Dopa Merchant adapter | Product promotions; this is commerce distribution, not a social post |
 
-Tailwind's dashboard can publish to Instagram and Facebook, but its current MCP surface is Pinterest-only. The Dopa connector therefore orchestrates several platform adapters while Claude remains the single conversational interface.
+The Dopa connector orchestrates the platform adapters while Claude remains the single conversational interface. Pinterest publication runs through the same secured worker pattern as Meta and Google; provider tokens never enter Claude.
 
 ## Safety and approval flow
 
@@ -40,4 +40,4 @@ Claude should ask for a correction when the account is ambiguous, an asset lacks
 
 ## Implementation status
 
-The repository now contains the channel-neutral plan, validation, approval and routing contracts. Live Tailwind, Meta and Google adapters still require their respective OAuth account connections and remain outside the rendering core.
+The repository contains the channel-neutral plan, validation, approval, routing contracts and direct Pinterest, Meta and Google adapters. Live publication still requires each Dopa account's OAuth connection and remains outside the rendering core.
