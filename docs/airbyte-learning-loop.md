@@ -18,3 +18,10 @@ uncertainty, and it cannot approve, schedule or publish its own proposals.
 
 Airbyte Cloud requires an Application client ID and secret. Access tokens are
 short-lived, so the client fetches a new token before control-plane calls.
+# Dopa Google-bronnen
+
+Voor Dopa lopen Google-resultaten via Airbyte en niet via tokens in de Hub.
+De ondersteunde Google-bronnen zijn Google Analytics 4, Google Search Console,
+Google Ads en Google Merchant Center. Een Google Bedrijfsprofiel blijft alleen
+beschikbaar voor merken die klanten fysiek ontvangen of op locatie bedienen;
+voor de volledig online Dopa-winkel wordt die bron niet geactiveerd.

@@ -36,6 +36,8 @@ function configuredConnections(): Partial<Record<DataProvider, string>> {
     "etsy",
     "shopify",
     "google_analytics",
+    "google_search_console",
+    "google_ads",
     "google_business_profile",
     "google_merchant_center",
   ];
