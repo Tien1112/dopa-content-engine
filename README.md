@@ -35,6 +35,12 @@ For hosted execution, the renderer is also packaged as an unprivileged Railway
 background worker. See [Railway render worker](docs/railway-render-worker.md).
 Claude and Lovable never render production media in the browser.
 
+The existing Meta adapter can also run as a separate, unprivileged Railway
+background worker connected to the Hub's authenticated `publish_jobs` gateway.
+See [Railway Meta publish worker](docs/railway-publish-worker.md). It supports
+only the placements already covered by adapter and gateway tests; unsupported
+Stories and Facebook Reels stay blocked rather than being silently remapped.
+
 Prepare a downloaded Claude Design ZIP without executing files from the archive:
 
 ```bash

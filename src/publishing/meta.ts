@@ -116,7 +116,20 @@ export class MetaGraphPublisher {
 }
 
 export async function loadMetaConfig(file: string): Promise<MetaConfigFile> {
-  const parsed = JSON.parse(await readFile(file, "utf8")) as MetaConfigFile;
+  return validateMetaConfig(JSON.parse(await readFile(file, "utf8")));
+}
+
+/** Railway can supply the private config as one secret instead of a mounted file. */
+export async function loadMetaConfigFromEnvironment(): Promise<MetaConfigFile> {
+  const inline = process.env.DOPA_META_CONFIG_JSON;
+  if (inline) return validateMetaConfig(JSON.parse(inline));
+  const file = process.env.DOPA_META_CONFIG;
+  if (!file) throw new Error("DOPA_META_CONFIG_JSON or DOPA_META_CONFIG is required");
+  return loadMetaConfig(file);
+}
+
+function validateMetaConfig(value: unknown): MetaConfigFile {
+  const parsed = value as MetaConfigFile;
   if (!parsed || typeof parsed !== "object" || !parsed.accounts || !parsed.graph_api_version) throw new Error("Invalid Meta adapter config");
   for (const [accountRef, account] of Object.entries(parsed.accounts)) {
     if (!/^[a-z0-9][a-z0-9-]{0,99}$/.test(accountRef)) throw new Error(`Invalid Meta account_ref: ${accountRef}`);
