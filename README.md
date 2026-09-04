@@ -41,6 +41,12 @@ See [Railway Meta publish worker](docs/railway-publish-worker.md). It supports
 only the placements already covered by adapter and gateway tests; unsupported
 Stories and Facebook Reels stay blocked rather than being silently remapped.
 
+Pinterest, Etsy and Google Business Profile use a separate multichannel worker;
+see [Railway channel publishers](docs/railway-channel-publishers.md). Airbyte
+sync control and the Claude evidence contract are described in
+[Airbyte and Claude learning loop](docs/airbyte-learning-loop.md). These services
+remain disabled until real account credentials and explicit live tests exist.
+
 Prepare a downloaded Claude Design ZIP without executing files from the archive:
 
 ```bash

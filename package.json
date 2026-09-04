@@ -15,6 +15,8 @@
     "mcp:remote": "npm run build && node dist/src/mcp/http.js",
     "publish:meta-due": "npm run build && node dist/src/publishing/meta-worker.js",
     "publish:hub-meta": "npm run build && node dist/src/publishing/hub-meta-main.js",
+    "publish:hub-channels": "npm run build && node dist/src/publishing/hub-channel-main.js",
+    "sync:airbyte": "npm run build && node dist/src/analytics/airbyte-main.js",
     "proof:eye-animation": "node scripts/create-eye-animation-proof.mjs",
     "render:example": "npm run build && node dist/src/cli.js examples/static-design/manifest.json",
     "render:worker": "npm run build && node dist/src/worker/main.js",

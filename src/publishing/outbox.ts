@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ContentPlanItem, PublisherAdapter, PublishingChannel } from "./types.js";
 
-const CHANNELS: PublishingChannel[] = ["pinterest", "instagram", "facebook", "google_business_profile", "google_merchant"];
+const CHANNELS: PublishingChannel[] = ["pinterest", "instagram", "facebook", "etsy", "google_business_profile", "google_merchant"];
 
 export interface OutboxRecord {
   external_id: string;

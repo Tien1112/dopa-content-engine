@@ -13,6 +13,7 @@ const ALLOWED_CONTENT_TYPES: Record<PublishingChannel, ReadonlySet<PublishingCon
   pinterest: new Set(["pin"]),
   instagram: new Set(["feed_post", "carousel", "story", "reel"]),
   facebook: new Set(["feed_post", "carousel", "story", "reel"]),
+  etsy: new Set(["listing"]),
   google_business_profile: new Set(["update", "offer", "event"]),
   google_merchant: new Set(["promotion"])
 };

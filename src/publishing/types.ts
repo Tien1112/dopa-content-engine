@@ -2,6 +2,7 @@ export type PublishingChannel =
   | "pinterest"
   | "instagram"
   | "facebook"
+  | "etsy"
   | "google_business_profile"
   | "google_merchant";
 
@@ -11,6 +12,7 @@ export type PublishingContentType =
   | "carousel"
   | "story"
   | "reel"
+  | "listing"
   | "update"
   | "offer"
   | "event"
@@ -44,6 +46,8 @@ export interface ContentPlanItem {
   publish_at: string;
   media: ApprovedMediaAsset[];
   copy: ChannelCopy;
+  /** Provider-specific, non-secret fields validated by the target adapter. */
+  provider_payload?: Record<string, unknown>;
 }
 
 export interface PlanApproval {
