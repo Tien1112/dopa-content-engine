@@ -9,12 +9,24 @@ const DEFAULT_GATEWAY = "https://dopa-content-hub.lovable.app/api/public/claude-
 const CONFIRMATION = "PLAN NU DEZE EXACTE VERSIE IN" as const;
 
 const channelSchema = z.enum(["instagram", "facebook", "pinterest", "story"]);
+const placementSchema = z.enum([
+  "instagram_feed", "instagram_square", "instagram_story", "instagram_reel",
+  "facebook_feed", "facebook_landscape", "facebook_story", "facebook_reel",
+  "pinterest_standard", "etsy_listing_landscape", "etsy_listing_square",
+  "google_business_standard",
+]);
 const plannedPostSchema = z.object({
   id: z.string().trim().min(1).max(120),
   design: z.string().trim().min(1).max(80),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   caption: z.string().max(5000),
+  title: z.string().trim().max(200).optional(),
+  alt_text: z.string().trim().max(1000).optional(),
+  hashtags: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+  destination_url: z.string().url().optional(),
+  product_ref: z.string().trim().max(120).optional(),
+  provider_payload: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 export interface RemoteMcpOptions {
@@ -76,6 +88,17 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
       posts: z.array(plannedPostSchema).max(60),
     },
   }, async (input) => toolResult(await gateway.call("save_plan_channel", input)));
+
+  server.registerTool("dopa_save_plan_placement", {
+    title: "Save one exact Dopa placement draft",
+    description: "Replace one complete placement draft, including Etsy listing fields where applicable. Saves persistent draft data only; approval and publishing remain separate.",
+    inputSchema: {
+      campaign_slug: z.string().trim().min(1).max(120).default("dopa-quotes-week-36"),
+      placement_key: placementSchema,
+      expected_revision_id: z.string().uuid(),
+      posts: z.array(plannedPostSchema).max(60),
+    },
+  }, async (input) => toolResult(await gateway.call("save_plan_placement", input)));
 
   server.registerTool("dopa_list_publish_jobs", {
     title: "List Dopa internal dispatch jobs",

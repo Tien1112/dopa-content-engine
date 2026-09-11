@@ -9,10 +9,11 @@ This is a separate layer from Dopa Render. Render produces approved, machine-che
 | Pinterest | Dopa Pinterest API adapter | Image Pins on approved boards |
 | Instagram | Dopa Meta adapter | Feed posts, carousels, Stories and Reels |
 | Facebook | Dopa Meta adapter | Page posts, carousels, Stories and Reels |
+| Etsy | Dopa Etsy Open API adapter | Productlistings als concept aanmaken, listingfoto's uploaden en na expliciete bevestiging activeren |
 | Google Business Profile | Dopa Google adapter | Updates, offers and events |
 | Google Merchant Center | Dopa Merchant adapter | Product promotions; this is commerce distribution, not a social post |
 
-The Dopa connector orchestrates the platform adapters while Claude remains the single conversational interface. Pinterest publication runs through the same secured worker pattern as Meta and Google; provider tokens never enter Claude.
+The Dopa connector orchestrates the platform adapters while Claude remains the single conversational interface. Pinterest and Etsy publication run through the same secured worker pattern as Meta and Google; provider tokens never enter Claude.
 
 ## Safety and approval flow
 
@@ -30,7 +31,7 @@ Credentials never belong in a content plan. `account_ref` is an opaque reference
 
 Draft request:
 
-> Use these approved Dopa designs to propose a two-week content calendar for Pinterest, Instagram, Facebook and Google. Write channel-specific copy, hashtags, alt text and calls to action. Use the correct approved format for each placement. Save everything as a draft and do not schedule or publish anything yet.
+> Use these approved Dopa designs to propose a two-week content calendar for Pinterest, Instagram and Facebook, and prepare matching Etsy product listings and Google updates where relevant. Write channel-specific copy, hashtags, alt text and calls to action. Use the correct approved format for each placement. Save everything as a draft and do not schedule or publish anything yet.
 
 Approval request:
 
@@ -40,4 +41,4 @@ Claude should ask for a correction when the account is ambiguous, an asset lacks
 
 ## Implementation status
 
-The repository contains the channel-neutral plan, validation, approval, routing contracts and direct Pinterest, Meta and Google adapters. Live publication still requires each Dopa account's OAuth connection and remains outside the rendering core.
+The repository contains the channel-neutral plan, validation, approval, routing contracts and direct Pinterest, Meta, Etsy and Google adapters. Live publication still requires each Dopa account's OAuth connection and remains outside the rendering core.
