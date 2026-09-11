@@ -44,7 +44,7 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
     { name: "dopa-content-engine", version: "0.2.0" },
     {
       instructions:
-        "Claude is the conversational starting point. Lovable is the visual upload, review, approval and planner UI. Save drafts only after discussing channel-specific copy and order. Never describe an internal queue as proof of live publication. Never queue without the user's separate explicit confirmation.",
+        "The connected conversation client (Claude or ChatGPT) is the strategic control layer. Combine measured performance, 30-days research signals and user-supplied thoughts or transcripts to propose strategies, campaigns and content briefs. Never create images or animations: the user creates those in Claude Design and uploads them to Lovable for rendering, review and planning. Never describe an internal queue as proof of live publication and never queue without the user's separate explicit confirmation.",
     },
   );
 
@@ -52,6 +52,24 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
     title: "Show Dopa channel requirements",
     description: "Read proven placements and the real final dispatch route before drafting. Does not change data.",
   }, async () => toolResult(await gateway.call("channel_requirements")));
+
+  server.registerTool("dopa_get_learning_snapshot", {
+    title: "Read Dopa evidence for content strategy",
+    description: "Read measured performance, commerce attribution, 30-days research signals and user-supplied conversation context. Use it to propose strategies and campaign briefs, never to manufacture assets.",
+    inputSchema: { days: z.number().int().min(1).max(90).default(30) },
+  }, async ({ days }) => toolResult(await gateway.call("get_learning_snapshot", { days })));
+
+  server.registerTool("dopa_record_user_input", {
+    title: "Remember Dopa strategy input from this conversation",
+    description: "Store a thought, sales note, call transcript or website reference supplied by the user so it can inform later strategy. This never creates, plans or publishes content.",
+    inputSchema: {
+      input_type: z.enum(["thought", "call_transcript", "sales_note", "website", "other"]),
+      title: z.string().trim().min(2).max(200),
+      content: z.string().trim().min(2).max(50_000),
+      source_url: z.string().url().optional(),
+      occurred_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    },
+  }, async (input) => toolResult(await gateway.call("record_user_input", input)));
 
   server.registerTool("dopa_list_render_jobs", {
     title: "List Dopa productions",
@@ -124,6 +142,20 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
       content: {
         type: "text",
         text: `Plan Dopa content for this brief: ${campaign_brief}\n\nFirst read dopa_channel_requirements and the current content plan. Discuss captions, hashtags, alt text, order and timing per channel. Save drafts only after confirmation. Send me to Lovable for the channel-native visual check and manual approval. Do not queue anything until I separately say: ${CONFIRMATION}.`,
+      },
+    }],
+  }));
+
+  server.registerPrompt("dopa_build_content_strategy", {
+    title: "Build a Dopa content strategy from evidence",
+    description: "Combine Dopa performance, 30-days signals and the user's own context into campaign and content ideas without creating assets.",
+    argsSchema: { strategic_question: z.string().min(1) },
+  }, ({ strategic_question }) => ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Help with this Dopa strategy question: ${strategic_question}\n\nFirst read dopa_get_learning_snapshot for the last 30 days. Combine measured results, 30-days research signals and relevant thoughts or transcripts from the user. Clearly separate evidence from hypotheses. Propose a small set of strategies, campaign concepts and channel-specific content briefs. Do not create images or animations. The user will make the chosen concepts in Claude Design and then upload them to the Dopa Hub.`,
       },
     }],
   }));
