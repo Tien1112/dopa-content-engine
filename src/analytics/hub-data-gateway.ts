@@ -37,7 +37,15 @@ export class HubDataGateway {
   }
   async health(): Promise<void> { const value = await this.action<{ ok: boolean; version: number }>({ action: "health" }); if (!value.ok || value.version !== 1) throw new Error("Data gateway health check failed"); }
   async start(provider: DataProvider, connectionRef: string, airbyteJobId: number): Promise<string> { const value = await this.action<{ run_id: string }>({ action: "start_run", provider, connection_ref: connectionRef, airbyte_job_id: airbyteJobId }); if (!value.run_id) throw new Error("Data gateway returned no run_id"); return value.run_id; }
-  async complete(runId: string, status: AirbyteJobStatus, error?: string, rowsLoaded?: number): Promise<void> { await this.action({ action: "complete_run", run_id: runId, status, error_text: error ? safe(error) : null, ...(rowsLoaded === undefined ? {} : { rows_loaded: rowsLoaded }) }); }
+  async complete(runId: string, status: AirbyteJobStatus, error?: string, rowsLoaded?: number): Promise<void> {
+    await this.action({
+      action: "complete_run",
+      run_id: runId,
+      status,
+      ...(error ? { error_text: safe(error) } : {}),
+      ...(rowsLoaded === undefined ? {} : { rows_loaded: rowsLoaded })
+    });
+  }
   async upsert(provider: DataProvider, connectionRef: string, runId: string, records: readonly PerformanceRecord[]): Promise<number> {
     let loaded = 0;
     for (let offset = 0; offset < records.length; offset += 500) {

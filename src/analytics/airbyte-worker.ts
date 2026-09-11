@@ -32,7 +32,9 @@ export async function runAirbyteWorker(): Promise<void> {
           await gateway.complete(runId, "succeeded", undefined, loaded);
         }
       } catch (error) {
-        await Promise.all(runs.map(({ runId }) => gateway.complete(runId, "failed", error instanceof Error ? error.message : String(error)).catch(() => undefined)));
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[airbyte:${route.name}] ${message}`);
+        await Promise.all(runs.map(({ runId }) => gateway.complete(runId, "failed", message).catch(() => undefined)));
       }
     }
     if (once) return;
