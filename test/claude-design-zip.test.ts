@@ -3,7 +3,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, isTwoByThree, prepareClaudeDesignPngVariants, readPngDimensions, selectClaudeSocialProfiles, validateZipEntries } from "../src/adapters/claude-design-zip.js";
+import { adaptBundledClaudeHtml, CLAUDE_SOCIAL_PROFILES, detectFontFamilies, detectHtmlPages, detectRequiredFontFamilies, exactPresetForCanvas, hasAnimationSignals, isTwoByThree, prepareClaudeDesignPngVariants, readPngDimensions, selectClaudeSocialProfiles, validateZipEntries } from "../src/adapters/claude-design-zip.js";
 
 test("rejects ZIP path traversal before extraction", () => {
   assert.throws(() => validateZipEntries(["safe/file.html", "../escape.html"]), /Unsafe ZIP entry/);
@@ -39,6 +39,12 @@ test("requires only packaged fonts actually used by the design", () => {
     @font-face { font-family: 'Space Mono'; src: url(space-mono.woff2) }
   </style><section style=\"font-family:'Newsreader',serif\">Approved design</section>`;
   assert.deepEqual(detectRequiredFontFamilies(html), ["Newsreader"]);
+});
+
+test("detects animated Claude exports without treating ordinary designs as animated", () => {
+  assert.equal(hasAnimationSignals("<style>@keyframes pulse{to{opacity:.5}} .eye{animation:pulse 1s infinite}</style>"), true);
+  assert.equal(hasAnimationSignals("<script>requestAnimationFrame(draw)</script>"), true);
+  assert.equal(hasAnimationSignals("<section style=\"opacity:.5\">Static</section>"), false);
 });
 
 test("maps only approved exact canvases to output presets", () => {

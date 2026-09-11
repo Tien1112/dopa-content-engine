@@ -6,7 +6,7 @@ import { loadPresets } from "./config.js";
 import { inspectPackage } from "./inspect.js";
 import { loadManifest, resolveInsidePackage } from "./manifest.js";
 import { verifyPng } from "./qa.js";
-import { createStaticMp4, verifyMp4 } from "./video.js";
+import { createAnimatedMp4, createStaticMp4, verifyMp4 } from "./video.js";
 import type { OutputQa, QaReport } from "./types.js";
 
 interface RenderTarget {
@@ -27,7 +27,6 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
   const reportPath = path.join(outputDir, "qa-report.json");
   const finish = async () => { report.status = report.outputs.length > 0 && report.outputs.every((o) => o.qa === "passed") ? "passed" : "failed"; await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`); return report; };
   if (inspection.issues.length) { report.outputs.push(failed("preflight", inspection.issues)); return finish(); }
-  if (manifest.animation) { report.outputs.push(failed("animation", ["Animated source capture is not implemented; static Reel MP4 output is supported"])); return finish(); }
   const presets = await loadPresets();
   let browser;
   try {
@@ -39,7 +38,7 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
       const mode = request.mode ?? "exact";
       if (mode !== "exact") { report.outputs.push(failed(request.preset, [`Render mode ${mode} is not implemented; refusing to distort the design`])); continue; }
       if (preset.width !== manifest.canvas.width || preset.height !== manifest.canvas.height) { report.outputs.push(failed(request.preset, [`exact mode requires source canvas ${manifest.canvas.width}x${manifest.canvas.height} to equal preset ${preset.width}x${preset.height}`])); continue; }
-      const context = await browser.newContext({ viewport: { width: preset.width, height: preset.height }, deviceScaleFactor: 1, reducedMotion: "reduce" });
+      const context = await browser.newContext({ viewport: { width: preset.width, height: preset.height }, deviceScaleFactor: 1, reducedMotion: manifest.animation ? "no-preference" : "reduce" });
       const page = await context.newPage();
       const failedResources: string[] = [];
       page.on("requestfailed", (request) => failedResources.push(`${request.url()}: ${request.failure()?.errorText ?? "failed"}`));
@@ -64,7 +63,7 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
         }
         for (const target of targets.items) {
           const targetErrors = [...errors];
-          let locator;
+          let locator: import("playwright").Locator | undefined;
           if (target.selector !== undefined && target.index !== undefined) {
             locator = page.locator(target.selector).nth(target.index);
             const box = await locator.boundingBox();
@@ -74,7 +73,7 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
           const outputName = target.label ? `${target.label}-${request.preset}.${preset.format}` : `${request.preset}.${preset.format}`;
           const outputFile = path.join(outputDir, outputName);
           const posterFile = preset.format === "mp4" ? path.join(outputDir, `.${path.parse(outputName).name}.poster.png`) : outputFile;
-          if (!targetErrors.length) {
+          if (!targetErrors.length && !(manifest.animation && preset.format === "mp4")) {
             if (locator) await locator.screenshot({ path: posterFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "disabled" });
             else await page.screenshot({ path: posterFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "disabled" });
           }
@@ -83,8 +82,23 @@ export async function renderJob(manifestPathInput: string): Promise<QaReport> {
             if (preset.format === "png") {
               qa = await verifyPng({ preset: request.preset, ...(target.label ? { pageLabel: target.label } : {}), file: outputFile, reportFile: path.relative(packageRoot, outputFile), expectedWidth: preset.width, expectedHeight: preset.height, requireAlpha: manifest.transparent_background ?? false, fontsLoaded: true, assetsLoaded: true });
             } else {
-              await createStaticMp4(posterFile, outputFile, request.duration_seconds ?? 5, request.frame_rate ?? 30);
-              qa = await verifyMp4({ preset: request.preset, ...(target.label ? { pageLabel: target.label } : {}), file: outputFile, reportFile: path.relative(packageRoot, outputFile), expectedWidth: preset.width, expectedHeight: preset.height, fontsLoaded: true, assetsLoaded: true });
+              const duration = request.duration_seconds ?? 5;
+              const frameRate = request.frame_rate ?? 30;
+              if (manifest.animation) {
+                await createAnimatedMp4(outputFile, duration, frameRate, async (frameFile, timeMs) => {
+                  await page.evaluate((animationTime) => {
+                    for (const animation of document.getAnimations()) {
+                      animation.pause();
+                      animation.currentTime = animationTime;
+                    }
+                  }, timeMs);
+                  if (locator) await locator.screenshot({ path: frameFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "allow" });
+                  else await page.screenshot({ path: frameFile, type: "png", omitBackground: manifest.transparent_background ?? false, animations: "allow" });
+                });
+              } else {
+                await createStaticMp4(posterFile, outputFile, duration, frameRate);
+              }
+              qa = await verifyMp4({ preset: request.preset, ...(target.label ? { pageLabel: target.label } : {}), file: outputFile, reportFile: path.relative(packageRoot, outputFile), expectedWidth: preset.width, expectedHeight: preset.height, fontsLoaded: true, assetsLoaded: true, expectedAnimated: manifest.animation ?? false });
               await rm(posterFile, { force: true });
             }
           }

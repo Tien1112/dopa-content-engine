@@ -74,6 +74,10 @@ export function detectRequiredFontFamilies(html: string): string[] {
   return [...new Set(used.filter((family) => packaged.has(family)))].sort();
 }
 
+export function hasAnimationSignals(html: string): boolean {
+  return /@keyframes|animation(?:-name)?\s*:|requestAnimationFrame\s*\(|<video\b/i.test(html);
+}
+
 export function isTwoByThree(width: number, height: number): boolean {
   return width > 0 && height > 0 && width * 3 === height * 2;
 }
@@ -182,7 +186,7 @@ export async function prepareClaudeDesignHtml(html: string, outputInput: string,
     source: "source/index.html",
     canvas: { width: canvas.width, height: canvas.height },
     pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: canvas.count },
-    animation: false,
+    animation: hasAnimationSignals(html),
     transparent_background: false,
     ...(requiredFonts.length ? { required_fonts: requiredFonts } : {}),
     outputs: [{ preset, mode: "exact" }]
@@ -219,7 +223,7 @@ async function prepareSocialVariants(
       source: "source/index.html",
       canvas: { width: profile.width, height: profile.height },
       pages: { selector: "[data-document-role=page]", label_attribute: "data-label", maximum: canvas.count },
-      animation: false,
+      animation: hasAnimationSignals(html),
       transparent_background: false,
       ...(requiredFonts.length ? { required_fonts: requiredFonts } : {}),
       outputs: [{ preset: profile.preset, mode: "exact", ...((profile.preset.endsWith("_reel")) ? { duration_seconds: 5, frame_rate: 30 } : {}) }]
