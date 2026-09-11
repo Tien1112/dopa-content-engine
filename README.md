@@ -115,7 +115,3 @@ The renderer captures each matched element separately and includes the normalize
 Unsupported modes fail visibly. A renderer must never stretch one aspect ratio into another.
 
 See [architecture](docs/architecture.md), [assumptions and risks](docs/assumptions-and-risks.md), [threat model](docs/threat-model.md), and [acceptance tests](docs/phase-1-acceptance-tests.md).
-
-Organic Facebook and Instagram post results are intentionally read through a
-separate read-only worker; the Airbyte Facebook Marketing source remains the
-paid-ad data source. See [Meta organic analytics worker](docs/meta-organic-analytics.md).
