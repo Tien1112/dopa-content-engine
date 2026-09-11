@@ -31,6 +31,10 @@ export async function loadManifest(manifestPath: string): Promise<Manifest> {
     if (!output || typeof output !== "object" || !nonEmpty((output as Record<string, unknown>).preset)) throw new Error("Every output needs a preset");
     const mode = (output as Record<string, unknown>).mode;
     if (mode !== undefined && !["exact", "contain", "cover"].includes(String(mode))) throw new Error(`Unsupported render mode: ${String(mode)}`);
+    const duration = (output as Record<string, unknown>).duration_seconds;
+    if (duration !== undefined && (typeof duration !== "number" || !Number.isFinite(duration) || duration < 1 || duration > 60)) throw new Error("output.duration_seconds must be between 1 and 60");
+    const frameRate = (output as Record<string, unknown>).frame_rate;
+    if (frameRate !== undefined && (!Number.isInteger(frameRate) || (frameRate as number) < 1 || (frameRate as number) > 60)) throw new Error("output.frame_rate must be an integer between 1 and 60");
   }
   return value as Manifest;
 }

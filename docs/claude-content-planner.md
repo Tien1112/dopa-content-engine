@@ -12,7 +12,7 @@ De reviewpagina toont Instagram als een raster en Facebook als een tijdlijn. Mar
 
 Voorbeeld:
 
-> Gebruik de goedgekeurde Dopa-assets voor volgende week. Maak voorstellen voor Pinterest, Instagram en Facebook. Schrijf per kanaal een eigen caption, hashtags en alt-tekst. Gebruik Europe/Amsterdam en sla alleen een concept op.
+> Gebruik de goedgekeurde Dopa-assets voor volgende week. Maak voorstellen voor Pinterest, Instagram en Facebook en bereid bijpassende Etsy-listings voor. Schrijf per kanaal een eigen tekst en gebruik Europe/Amsterdam. Sla alles alleen als concept op.
 
 Na controle:
 
@@ -44,6 +44,7 @@ De twee bevestigingen zijn hoofdlettergevoelig in de tool-input. Claude mag ze a
 | Pinterest | Dopa-plan + bordcontrole | Dopa Pinterest API-adapter na OAuth en bordkeuze |
 | Instagram | Dopa-plan + visuele rastercontrole | Dopa Meta Graph-adapter na accountkoppeling |
 | Facebook | Dopa-plan + visuele tijdlijncontrole | Dopa Meta Graph-adapter na accountkoppeling |
+| Etsy | Dopa-listingplan + productgegevens | Etsy Open API-adapter na OAuth; eerst concept, pas na expliciete bevestiging actief |
 | Google Business Profile | Dopa-plan | Google Local Posts-adapter na OAuth en locatiekeuze |
 | Google Merchant Center | Dopa-promotieplan | Merchant Promotions-adapter; Google beoordeelt de promotie |
 
@@ -103,6 +104,12 @@ De preview toont nu de geplande campagne. Om ook de reeds bestaande live Instagr
 - Toegang tot de Business Profile APIs.
 - Dopa-account- en locatie-ID.
 - Definitieve call-to-actionregels en bestemmingslinks.
+
+### Etsy
+
+- Etsy-app/API-key en OAuth-toegang voor de echte Dopa-shop.
+- Etsy shop-ID, taxonomie, verzendprofiel en retourbeleid.
+- De Hub maakt elke nieuwe listing eerst als concept aan; live activeren vraagt een aparte expliciete bevestiging.
 
 ### Google Merchant Center
 

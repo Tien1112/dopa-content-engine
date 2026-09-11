@@ -34,6 +34,7 @@ test("remote MCP hides the endpoint and exposes safe Dopa tools", async () => {
     const listed = await client.listTools();
     assert.ok(listed.tools.some((tool) => tool.name === "dopa_save_plan_channel"));
     assert.ok(listed.tools.some((tool) => tool.name === "dopa_queue_approved_revision"));
+    assert.ok(listed.tools.some((tool) => tool.name === "dopa_record_research_signals"));
 
     const requirements = await client.callTool({ name: "dopa_channel_requirements", arguments: {} });
     assert.match(JSON.stringify(requirements), /channel_requirements/);

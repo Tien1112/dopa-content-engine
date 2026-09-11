@@ -1,6 +1,6 @@
 # Dopa Render Engine
 
-A deterministic production rendering layer for approved Claude Design exports. Claude remains the creative cockpit; this service turns packaged HTML into validated production assets without redesigning it.
+A deterministic production rendering layer for approved Claude Design exports. Claude or ChatGPT is the conversational strategy cockpit; the user creates the chosen idea in Claude Design, and this service turns that approved package into validated production assets without redesigning it.
 
 ## Social production status
 

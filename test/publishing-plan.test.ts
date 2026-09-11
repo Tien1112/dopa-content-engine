@@ -39,6 +39,38 @@ test("content type must match its target channel", () => {
   assert.match(validateContentPlan(plan).join("\n"), /feed_post is not supported for pinterest/);
 });
 
+test("Claude plans Etsy as a listing with its approved commerce payload", () => {
+  const plan = draftPlan();
+  plan.items[0] = {
+    ...plan.items[0]!,
+    item_id: "dopa-etsy-01",
+    channel: "etsy",
+    content_type: "listing",
+    account_ref: "dopa-etsy",
+    media: [{
+      asset_id: "etsy-4x3",
+      file: "renders/dopa-etsy.png",
+      public_url: "https://assets.example/dopa-etsy.png",
+      mime_type: "image/png",
+      width: 2667,
+      height: 2000,
+      qa: "passed",
+    }],
+    copy: { title: "Dopa kaart", message: "Productomschrijving" },
+    provider_payload: {
+      price: 12.5,
+      quantity: 10,
+      taxonomy_id: 1234,
+      who_made: "i_did",
+      when_made: "2020_2026",
+      is_supply: false,
+      state: "draft",
+    },
+  };
+
+  assert.deepEqual(validateContentPlan(plan), []);
+});
+
 test("an explicitly approved plan is routed with a stable idempotency key", async () => {
   const calls: string[] = [];
   const adapter: PublisherAdapter = {

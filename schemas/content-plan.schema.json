@@ -35,15 +35,16 @@
       "required": ["item_id", "channel", "content_type", "account_ref", "publish_at", "media", "copy"],
       "properties": {
         "item_id": { "type": "string", "minLength": 1 },
-        "channel": { "enum": ["pinterest", "instagram", "facebook", "google_business_profile", "google_merchant"] },
-        "content_type": { "enum": ["pin", "feed_post", "carousel", "story", "reel", "update", "offer", "event", "promotion"] },
+        "channel": { "enum": ["pinterest", "instagram", "facebook", "etsy", "google_business_profile", "google_merchant"] },
+        "content_type": { "enum": ["pin", "feed_post", "carousel", "story", "reel", "listing", "update", "offer", "event", "promotion"] },
         "account_ref": { "type": "string", "minLength": 1 },
         "publish_at": { "type": "string", "format": "date-time" },
         "media": {
           "type": "array",
           "items": { "$ref": "#/$defs/media" }
         },
-        "copy": { "$ref": "#/$defs/copy" }
+        "copy": { "$ref": "#/$defs/copy" },
+        "provider_payload": { "type": "object", "additionalProperties": true }
       }
     },
     "media": {

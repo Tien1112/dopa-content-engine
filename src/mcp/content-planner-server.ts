@@ -7,8 +7,8 @@ import { createOutboxAdapters, listOutboxRecords, recordDispatchReceipt } from "
 import { ContentPlanStore } from "../publishing/store.js";
 import type { ContentPlan } from "../publishing/types.js";
 
-const channelSchema = z.enum(["pinterest", "instagram", "facebook", "google_business_profile", "google_merchant"]);
-const contentTypeSchema = z.enum(["pin", "feed_post", "carousel", "story", "reel", "update", "offer", "event", "promotion"]);
+const channelSchema = z.enum(["pinterest", "instagram", "facebook", "etsy", "google_business_profile", "google_merchant"]);
+const contentTypeSchema = z.enum(["pin", "feed_post", "carousel", "story", "reel", "listing", "update", "offer", "event", "promotion"]);
 const mediaSchema = z.object({
   asset_id: z.string().min(1),
   file: z.string().min(1),
@@ -34,7 +34,8 @@ const itemSchema = z.object({
   account_ref: z.string().min(1),
   publish_at: z.string().min(1),
   media: z.array(mediaSchema),
-  copy: copySchema
+  copy: copySchema,
+  provider_payload: z.record(z.string(), z.unknown()).optional()
 }).strict();
 const draftSchema = z.object({
   plan_id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,99}$/),
@@ -64,6 +65,7 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string, 
     pinterest: { content_types: ["pin"], final_dispatch: "Dopa Pinterest API adapter (requires Pinterest OAuth and an approved board)", copy: ["title", "message", "alt_text", "destination_url"], note: "Choose an approved Pinterest board before dispatch." },
     instagram: { content_types: ["feed_post", "carousel", "story", "reel"], proven_live_dispatch: ["feed_post", "carousel", "reel"], final_dispatch: "Dopa Meta Graph adapter (requires Meta connection and public HTTPS media)", copy: ["message", "hashtags", "alt_text", "first_comment"], note: "Story can be planned but live dispatch deliberately fails until proven." },
     facebook: { content_types: ["feed_post", "carousel", "story", "reel"], proven_live_dispatch: ["feed_post"], final_dispatch: "Dopa Meta Graph adapter (requires Meta connection and public HTTPS media)", copy: ["message", "destination_url", "call_to_action"], note: "Carousel, Story and Reel can be planned but live dispatch deliberately fails until proven." },
+    etsy: { content_types: ["listing"], final_dispatch: "Dopa Etsy Open API adapter (requires Etsy OAuth, shop ID and approved listing data)", copy: ["title", "message"], provider_payload: ["price", "quantity", "taxonomy_id", "who_made", "when_made", "is_supply", "shipping_profile_id", "return_policy_id"], note: "Creates a draft listing first. It becomes active only after a separate explicit confirmation." },
     google_business_profile: { content_types: ["update", "offer", "event"], final_dispatch: "Dopa Google Business Profile adapter (requires Google OAuth and location)", copy: ["message", "destination_url", "call_to_action"] },
     google_merchant: { content_types: ["promotion"], final_dispatch: "Dopa Merchant adapter (requires Merchant account, promotion data source and Google OAuth)", note: "Merchant promotions are commerce objects and undergo Google review; they are not ordinary social posts." }
   }));
@@ -132,7 +134,7 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string, 
 
   server.registerTool("dopa_queue_approved_plan", {
     title: "Queue an approved Dopa plan for channel dispatch",
-    description: "Call only after approval and a separate explicit instruction from Margot to schedule this exact revision. Creates idempotent outbox jobs; it does not claim that Pinterest, Meta or Google has published them.",
+    description: "Call only after approval and a separate explicit instruction from Margot to schedule this exact revision. Creates idempotent outbox jobs; it does not claim that Pinterest, Meta, Etsy or Google has published them.",
     inputSchema: z.object({
       plan_id: z.string().min(1),
       expected_revision: z.number().int().positive(),
@@ -149,6 +151,7 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string, 
       next_actions: {
         pinterest: "Configure the Dopa Pinterest API adapter, private OAuth token, approved board ID and public HTTPS media URL before live dispatch.",
         instagram_facebook: "Configure the Dopa Meta Graph adapter, private token environment variable, account IDs, public HTTPS media URLs and a recurring due-job worker before live dispatch.",
+        etsy: "Connect the Dopa Etsy shop with OAuth, API key and shop ID. Listings are created as drafts and are activated only after explicit confirmation.",
         google_business_profile: "Connect Google OAuth and select the Business Profile location before live dispatch.",
         google_merchant: "Connect Merchant Center, select a promotion data source and expect Google review before the promotion becomes live."
       }
@@ -157,7 +160,7 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string, 
 
   server.registerTool("dopa_list_outbox_jobs", {
     title: "List exact Dopa channel-dispatch jobs",
-    description: "Read queued jobs so Claude can report which Pinterest, Meta or Google jobs still need a connected adapter. This tool does not publish.",
+    description: "Read queued jobs so Claude can report which Pinterest, Meta, Etsy or Google jobs still need a connected adapter. This tool does not publish.",
     inputSchema: z.object({ channel: channelSchema.optional(), status: z.enum(["awaiting-channel-dispatch", "dispatched"]).optional() }).strict()
   }, async ({ channel, status }) => {
     const records = await listOutboxRecords(outboxRoot, channel);
@@ -165,7 +168,7 @@ export function buildContentPlannerServer(planRoot: string, outboxRoot: string, 
   });
 
   server.registerTool("dopa_record_dispatch_receipt", {
-    title: "Record a real Pinterest, Meta or Google receipt",
+    title: "Record a real Pinterest, Meta, Etsy or Google receipt",
     description: "Call only after the relevant connector returns a real platform ID. This converts an awaiting outbox job into a dispatched record and never performs the publication itself.",
     inputSchema: z.object({
       channel: channelSchema,

@@ -1,21 +1,28 @@
-# Dopa online koppelen aan Claude Chat
+# Dopa online koppelen aan Claude of ChatGPT
 
-Deze connector is de online opvolger van de lokale `stdio`-connector. Claude
-blijft het startpunt voor overleg en copy. Lovable blijft de vaste visuele
-omgeving voor upload, kanaalpreview, downloads en handmatige goedkeuring.
+Deze standaard MCP-connector kan vanuit Claude of ChatGPT worden gebruikt. De
+gekozen chatomgeving blijft het startpunt voor gedachten, gesprekken, analyse,
+strategie en campagne-ideeën. Lovable blijft de vaste visuele omgeving voor
+upload, rendering, kanaalpreview, downloads en handmatige goedkeuring.
 
 ## Wat de connector wel en niet doet
 
 - Leest productiestatussen, QA-metadata en Lovable-reviewlinks.
+- Bewaart door de gebruiker gedeelde gedachten, salesnotities, transcripts en
+  webbronnen als strategiecontext.
+- Combineert die context met echte resultaten en 30-days-onderzoekssignalen in
+  een analysebrief voor strategie-, campagne- en contentideeën.
 - Leest en bewaart dezelfde conceptplanning die Lovable toont.
 - Rekent de zichtbare Instagram-grid om naar de omgekeerde publicatievolgorde.
 - Kan na een handmatige Lovable-goedkeuring en een tweede letterlijke bevestiging
   een interne outboxopdracht aanmaken.
 - Uploaden van het volledige Claude Design ZIP-pakket blijft in Lovable, zodat
   Margot het exacte bronpakket zichtbaar kiest.
+- De connector maakt geen beelden of animaties. De gebruiker maakt gekozen
+  ideeën in Claude Design en uploadt het resultaat daarna in de Hub.
 - `queued` of `dispatched` is geen bewijs van een live platformpublicatie.
 - De connector publiceert niet rechtstreeks. Pinterest, Instagram, Facebook en
-  Google lopen via apart geconfigureerde beveiligde kanaaladapters.
+  Etsy en Google lopen via apart geconfigureerde beveiligde kanaaladapters.
 
 ## Railway-service
 
@@ -49,16 +56,17 @@ Margot is als reviewer uitgenodigd via `vanderiet.margot@gmail.com`. Ze logt op
 de vaste link in met de eenmalige e-maillink en heeft geen Lovable-editoraccount
 nodig.
 
-## Claude Desktop
+## Claude of ChatGPT
 
-Voeg in Claude bij custom connectors de volledige geheime Railway MCP-URL toe.
+Voeg in de gekozen chatomgeving bij custom connectors de volledige geheime Railway MCP-URL toe.
 Noem de connector `Dopa Content Engine`. De Dopa-connector blijft het enige
 bedieningspunt; afzonderlijke providerconnectors zijn niet nodig in Claude.
 
-Eerste veilige test:
+Eerste veilige strategietest:
 
-> Gebruik de Dopa Content Engine. Toon de kanaalvereisten en de huidige
-> producties. Verander niets.
+> Gebruik de Dopa Content Engine. Lees de laatste 30 dagen aan meetdata,
+> onderzoekssignalen en relevante input uit gesprekken. Geef drie onderbouwde
+> campagne-ideeën en benoem bewijs en onzekerheden. Maak geen beelden.
 
 Daarna:
 

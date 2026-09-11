@@ -9,12 +9,24 @@ const DEFAULT_GATEWAY = "https://dopa-content-hub.lovable.app/api/public/claude-
 const CONFIRMATION = "PLAN NU DEZE EXACTE VERSIE IN" as const;
 
 const channelSchema = z.enum(["instagram", "facebook", "pinterest", "story"]);
+const placementSchema = z.enum([
+  "instagram_feed", "instagram_square", "instagram_story", "instagram_reel",
+  "facebook_feed", "facebook_landscape", "facebook_story", "facebook_reel",
+  "pinterest_standard", "etsy_listing_landscape", "etsy_listing_square",
+  "google_business_standard",
+]);
 const plannedPostSchema = z.object({
   id: z.string().trim().min(1).max(120),
   design: z.string().trim().min(1).max(80),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   caption: z.string().max(5000),
+  title: z.string().trim().max(200).optional(),
+  alt_text: z.string().trim().max(1000).optional(),
+  hashtags: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+  destination_url: z.string().url().optional(),
+  product_ref: z.string().trim().max(120).optional(),
+  provider_payload: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 export interface RemoteMcpOptions {
@@ -32,7 +44,7 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
     { name: "dopa-content-engine", version: "0.2.0" },
     {
       instructions:
-        "Claude is the conversational starting point. Lovable is the visual upload, review, approval and planner UI. Save drafts only after discussing channel-specific copy and order. Never describe an internal queue as proof of live publication. Never queue without the user's separate explicit confirmation.",
+        "The connected conversation client (Claude or ChatGPT) is the strategic control layer. Combine measured performance, 30-days research signals and user-supplied thoughts or transcripts to propose strategies, campaigns and content briefs. Never create images or animations: the user creates those in Claude Design and uploads them to Lovable for rendering, review and planning. Never describe an internal queue as proof of live publication and never queue without the user's separate explicit confirmation.",
     },
   );
 
@@ -40,6 +52,40 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
     title: "Show Dopa channel requirements",
     description: "Read proven placements and the real final dispatch route before drafting. Does not change data.",
   }, async () => toolResult(await gateway.call("channel_requirements")));
+
+  server.registerTool("dopa_get_learning_snapshot", {
+    title: "Read Dopa evidence for content strategy",
+    description: "Read measured performance, commerce attribution, 30-days research signals and user-supplied conversation context. Use it to propose strategies and campaign briefs, never to manufacture assets.",
+    inputSchema: { days: z.number().int().min(1).max(90).default(30) },
+  }, async ({ days }) => toolResult(await gateway.call("get_learning_snapshot", { days })));
+
+  server.registerTool("dopa_record_user_input", {
+    title: "Remember Dopa strategy input from this conversation",
+    description: "Store a thought, sales note, call transcript or website reference supplied by the user so it can inform later strategy. This never creates, plans or publishes content.",
+    inputSchema: {
+      input_type: z.enum(["thought", "call_transcript", "sales_note", "website", "other"]),
+      title: z.string().trim().min(2).max(200),
+      content: z.string().trim().min(2).max(50_000),
+      source_url: z.string().url().optional(),
+      occurred_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    },
+  }, async (input) => toolResult(await gateway.call("record_user_input", input)));
+
+  server.registerTool("dopa_record_research_signals", {
+    title: "Store sourced Dopa 30 Days research",
+    description: "Store recent, source-backed market and audience signals gathered during a 30 Days research run. Every signal needs an observation date; this stores evidence only and never creates or publishes assets.",
+    inputSchema: {
+      signals: z.array(z.object({
+        topic: z.string().trim().min(2).max(200),
+        evidence: z.string().trim().min(2).max(2000),
+        source_url: z.string().url().max(1000),
+        source_name: z.string().trim().max(120).optional(),
+        observed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        relevance_score: z.number().min(0).max(100),
+        keywords: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
+      }).strict()).min(1).max(50),
+    },
+  }, async (input) => toolResult(await gateway.call("record_research_signals", input)));
 
   server.registerTool("dopa_list_render_jobs", {
     title: "List Dopa productions",
@@ -77,6 +123,17 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
     },
   }, async (input) => toolResult(await gateway.call("save_plan_channel", input)));
 
+  server.registerTool("dopa_save_plan_placement", {
+    title: "Save one exact Dopa placement draft",
+    description: "Replace one complete placement draft, including Etsy listing fields where applicable. Saves persistent draft data only; approval and publishing remain separate.",
+    inputSchema: {
+      campaign_slug: z.string().trim().min(1).max(120).default("dopa-quotes-week-36"),
+      placement_key: placementSchema,
+      expected_revision_id: z.string().uuid(),
+      posts: z.array(plannedPostSchema).max(60),
+    },
+  }, async (input) => toolResult(await gateway.call("save_plan_placement", input)));
+
   server.registerTool("dopa_list_publish_jobs", {
     title: "List Dopa internal dispatch jobs",
     description: "Read internal outbox records. A queued or dispatched record is never presented as proof of a live platform post.",
@@ -101,6 +158,34 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
       content: {
         type: "text",
         text: `Plan Dopa content for this brief: ${campaign_brief}\n\nFirst read dopa_channel_requirements and the current content plan. Discuss captions, hashtags, alt text, order and timing per channel. Save drafts only after confirmation. Send me to Lovable for the channel-native visual check and manual approval. Do not queue anything until I separately say: ${CONFIRMATION}.`,
+      },
+    }],
+  }));
+
+  server.registerPrompt("dopa_build_content_strategy", {
+    title: "Build a Dopa content strategy from evidence",
+    description: "Combine Dopa performance, 30-days signals and the user's own context into campaign and content ideas without creating assets.",
+    argsSchema: { strategic_question: z.string().min(1) },
+  }, ({ strategic_question }) => ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Help with this Dopa strategy question: ${strategic_question}\n\nFirst read dopa_get_learning_snapshot for the last 30 days. Combine measured results, 30-days research signals and relevant thoughts or transcripts from the user. Clearly separate evidence from hypotheses. Propose a small set of strategies, campaign concepts and channel-specific content briefs. Do not create images or animations. The user will make the chosen concepts in Claude Design and then upload them to the Dopa Hub.`,
+      },
+    }],
+  }));
+
+  server.registerPrompt("dopa_run_30days_research", {
+    title: "Run Dopa 30 Days research",
+    description: "Research only the latest 30 days, store verifiable signals, then combine them with Dopa performance and user context.",
+    argsSchema: { research_question: z.string().min(1), market: z.string().min(1).default("Netherlands") },
+  }, ({ research_question, market }) => ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Run a Dopa 30 Days research cycle for: ${research_question}\nMarket: ${market}.\n\nUse your current web-research capability and accept only sources published or materially updated within the latest 30 calendar days. Collect dated evidence about audience language, emerging needs, objections, product demand, search/social patterns and relevant cultural moments. Do not treat repetition as proof. Save the strongest source-backed findings with dopa_record_research_signals, including exact URLs and observation dates. Then read dopa_get_learning_snapshot and propose evidence-labelled campaign hypotheses and content briefs. Never create images or animations and never schedule or publish.`,
       },
     }],
   }));

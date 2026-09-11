@@ -18,7 +18,9 @@ Provider-specific JSON config values reference environment-variable names;
 they do not contain access tokens themselves:
 
 - `DOPA_PINTEREST_CONFIG_JSON` plus its referenced token variable. Each
-  account needs a reviewed Pinterest board ID and `pins:write` access.
+  account needs a reviewed Pinterest board ID and `pins:write` access. Image
+  Pins publish directly; MP4 Pins use Pinterest's register-upload-process flow
+  and require an approved HTTPS `cover_image_url` in the provider payload.
 - `DOPA_ETSY_CONFIG_JSON` plus referenced API key and OAuth token variables.
   Etsy creates a draft, uploads the QA-passed image and activates only when the
   approved provider payload explicitly contains `publish: true`.
