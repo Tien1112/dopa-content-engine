@@ -18,6 +18,8 @@ type BigQueryResponse = {
   errors?: Array<{ message?: string }>;
 };
 
+export type PerformanceScope = "all" | "paid" | "organic";
+
 const IDENTIFIER = /^[A-Za-z0-9_.-]+$/;
 const INTEGER_FIELDS = new Set([
   "impressions", "reach", "engagements", "saves", "clicks", "video_views",
@@ -55,11 +57,15 @@ export class BigQueryPerformanceReader {
     );
   }
 
-  async read(provider: DataProvider, days = 35): Promise<PerformanceRecord[]> {
+  async read(provider: DataProvider, days = 35, scope: PerformanceScope = "all"): Promise<PerformanceRecord[]> {
+    if (!["all", "paid", "organic"].includes(scope)) throw new Error("Invalid BigQuery performance scope");
     const sql = `SELECT metric_date, placement_key, external_post_id, tracking_code, product_ref,
       impressions, reach, engagements, saves, clicks, video_views, ad_spend_cents, orders, revenue_cents
       FROM \`${this.projectId}.${this.datasetId}.${this.tableId}\`
       WHERE provider = @provider
+        AND (@scope = 'all'
+          OR (@scope = 'paid' AND ENDS_WITH(placement_key, '_paid'))
+          OR (@scope = 'organic' AND ENDS_WITH(placement_key, '_organic')))
         AND metric_date >= DATE_SUB(CURRENT_DATE("Europe/Amsterdam"), INTERVAL @days DAY)
       ORDER BY metric_date ASC`;
     const first = await this.request<BigQueryResponse>(`https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(this.projectId)}/queries`, {
@@ -71,6 +77,7 @@ export class BigQueryPerformanceReader {
         parameterMode: "NAMED",
         queryParameters: [
           { name: "provider", parameterType: { type: "STRING" }, parameterValue: { value: provider } },
+          { name: "scope", parameterType: { type: "STRING" }, parameterValue: { value: scope } },
           { name: "days", parameterType: { type: "INT64" }, parameterValue: { value: String(days) } },
         ],
         maxResults: 10_000,

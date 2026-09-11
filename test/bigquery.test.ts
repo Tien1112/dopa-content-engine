@@ -22,10 +22,12 @@ test("BigQuery reader authenticates and converts normalized rows", async () => {
     client_email: "reader@dopa-project.iam.gserviceaccount.com",
     private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
   }, fetcher);
-  const rows = await reader.read("pinterest");
+  const rows = await reader.read("pinterest", 35, "organic");
   assert.deepEqual(rows, [{ metric_date: "2026-09-10", placement_key: "pinterest_pin", external_post_id: "pin-1", impressions: 125, orders: 2, revenue_cents: 3498 }]);
   assert.equal(calls.length, 2);
   assert.match(String(calls[1]!.init?.body), /content_performance_daily/);
+  assert.match(String(calls[1]!.init?.body), /ENDS_WITH\(placement_key, '_organic'\)/);
+  assert.match(String(calls[1]!.init?.body), /"value":"organic"/);
   assert.equal((calls[1]!.init?.headers as Record<string, string>).authorization, "Bearer token");
 });
 
