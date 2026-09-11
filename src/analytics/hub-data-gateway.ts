@@ -47,9 +47,10 @@ export class HubDataGateway {
     });
   }
   async upsert(provider: DataProvider, connectionRef: string, runId: string, records: readonly PerformanceRecord[]): Promise<number> {
+    const uniqueRecords = dedupePerformanceRecords(records);
     let loaded = 0;
-    for (let offset = 0; offset < records.length; offset += 500) {
-      const batch = records.slice(offset, offset + 500);
+    for (let offset = 0; offset < uniqueRecords.length; offset += 500) {
+      const batch = uniqueRecords.slice(offset, offset + 500);
       const value = await this.action<{ received: number }>({ action: "upsert_performance", provider, connection_ref: connectionRef, run_id: runId, records: batch });
       loaded += value.received;
     }
@@ -62,6 +63,20 @@ export class HubDataGateway {
     if (!response.ok) throw new Error(`Data gateway request failed (${response.status})`);
     try { return JSON.parse(raw) as T; } catch { throw new Error("Data gateway returned invalid JSON"); }
   }
+}
+
+/** Airbyte can expose repeated snapshots for the same normalized daily key. */
+export function dedupePerformanceRecords(records: readonly PerformanceRecord[]): PerformanceRecord[] {
+  const unique = new Map<string, PerformanceRecord>();
+  for (const record of records) {
+    const key = [
+      record.metric_date,
+      record.placement_key ?? "",
+      record.external_post_id ?? record.tracking_code ?? record.product_ref ?? "aggregate"
+    ].join("|");
+    unique.set(key, record);
+  }
+  return [...unique.values()];
 }
 
 function safe(value: string): string { return value.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 500); }
