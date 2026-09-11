@@ -33,6 +33,24 @@ step reads the Airbyte destination tables and only then writes the shared
 `content_performance_daily` model. This keeps one auditable data route for
 paid, organic and commerce performance.
 
+## BigQuery to Hub bridge
+
+The Railway Airbyte worker now performs the full hand-off after every successful
+Airbyte sync. It reads the normalized BigQuery table, selects the rows for the
+connection's provider and sends them in idempotent batches to the Hub data
+gateway. Configure:
+
+- `DOPA_BIGQUERY_PROJECT_ID=dopa-content-hub-507613`
+- `DOPA_BIGQUERY_DATASET=dopa_airbyte`
+- `DOPA_BIGQUERY_PERFORMANCE_TABLE=content_performance_daily`
+- `DOPA_BIGQUERY_SERVICE_ACCOUNT_JSON` with the private service-account JSON
+
+The BigQuery table or view must expose `provider`, `metric_date` and the Hub
+metric columns. Source-specific Airbyte tables are transformed into this one
+contract in BigQuery. If the service-account variable is absent, the worker can
+still trigger and audit Airbyte jobs, but it deliberately imports zero analytics
+rows and the Hub continues to report the missing data.
+
 ## Pinterest without Tailwind
 
 Publishing is performed by the Hub scheduler and the Pinterest API worker. The

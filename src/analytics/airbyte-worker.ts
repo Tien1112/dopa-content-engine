@@ -1,10 +1,12 @@
 import { AirbyteClient } from "./airbyte.js";
 import { HubDataGateway, type DataProvider } from "./hub-data-gateway.js";
+import { BigQueryPerformanceReader } from "./bigquery.js";
 
 export async function runAirbyteWorker(): Promise<void> {
   const client = new AirbyteClient({ client_id_env: "DOPA_AIRBYTE_CLIENT_ID", client_secret_env: "DOPA_AIRBYTE_CLIENT_SECRET", ...(process.env.DOPA_AIRBYTE_API_URL ? { api_base_url: process.env.DOPA_AIRBYTE_API_URL } : {}) });
   const gateway = new HubDataGateway(required("DOPA_DATA_GATEWAY_URL"), required("DOPA_DATA_WORKER_TOKEN"));
   const connections = configuredConnections();
+  const reader = BigQueryPerformanceReader.fromEnvironment();
   await gateway.health();
   const once = process.env.AIRBYTE_ONCE === "1";
   const interval = Math.max(60_000, Number(process.env.AIRBYTE_SYNC_INTERVAL_MS ?? 21_600_000));
@@ -15,7 +17,13 @@ export async function runAirbyteWorker(): Promise<void> {
         const started = await client.triggerSync(connectionId);
         runId = await gateway.start(provider, connectionId, started.jobId);
         const finished = await client.waitForJob(started.jobId);
-        await gateway.complete(runId, finished.status, finished.status === "succeeded" ? undefined : `Airbyte job ended as ${finished.status}`);
+        if (finished.status !== "succeeded") {
+          await gateway.complete(runId, finished.status, `Airbyte job ended as ${finished.status}`);
+          continue;
+        }
+        const rows = reader ? await reader.read(provider) : [];
+        const loaded = reader ? await gateway.upsert(provider, connectionId, runId, rows) : 0;
+        await gateway.complete(runId, "succeeded", undefined, loaded);
       } catch (error) {
         if (runId) await gateway.complete(runId, "failed", error instanceof Error ? error.message : String(error)).catch(() => undefined);
       }
