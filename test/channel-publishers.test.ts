@@ -53,6 +53,33 @@ test("Pinterest publisher uploads an MP4 before creating a video Pin", async () 
   ]);
 });
 
+test("Pinterest publisher can obtain and reuse an app-owner token with write scope", async () => {
+  process.env.TEST_PINTEREST_CLIENT_ID = "client-id";
+  process.env.TEST_PINTEREST_CLIENT_SECRET = "client-secret";
+  const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input); calls.push({ url, init });
+    if (url.endsWith("/v5/oauth/token")) {
+      return new Response(JSON.stringify({ access_token: "app-token", expires_in: 3600, scope: "boards:read pins:write" }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ id: `pin-${calls.length}` }), { status: 201 });
+  }) as typeof fetch;
+  const publisher = new PinterestPublisher({ accounts: { dopa: {
+    client_id_env: "TEST_PINTEREST_CLIENT_ID",
+    client_secret_env: "TEST_PINTEREST_CLIENT_SECRET",
+    scopes: ["boards:read", "pins:write"],
+    board_id: "board-1",
+  } } }, fetcher);
+  const item: ContentPlanItem = { item_id: "pc1", channel: "pinterest", content_type: "pin", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa Pin", message: "Beschrijving" }, provider_payload: { board_id: "board-1" } };
+  await publisher.publish(item);
+  await publisher.publish({ ...item, item_id: "pc2" });
+  assert.equal(calls.filter((call) => call.url.endsWith("/v5/oauth/token")).length, 1);
+  const oauth = calls[0]!;
+  assert.equal(oauth.init?.headers && (oauth.init.headers as Record<string, string>).authorization, "Basic Y2xpZW50LWlkOmNsaWVudC1zZWNyZXQ=");
+  assert.equal(String(oauth.init?.body), "grant_type=client_credentials&scope=boards%3Aread%2Cpins%3Awrite");
+  assert.equal(calls[1]!.init?.headers && (calls[1]!.init!.headers as Record<string, string>).authorization, "Bearer app-token");
+});
+
 test("Google Business publisher creates a standard local post with CTA", async () => {
   process.env.TEST_GOOGLE_TOKEN = "google-token";
   let request: { url: string; init: RequestInit | undefined } | undefined;

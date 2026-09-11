@@ -17,8 +17,11 @@ and `railway.channels.json`. Required shared private variables:
 Provider-specific JSON config values reference environment-variable names;
 they do not contain access tokens themselves:
 
-- `DOPA_PINTEREST_CONFIG_JSON` plus its referenced token variable. Each
-  account needs a reviewed Pinterest board ID and `pins:write` access. Image
+- `DOPA_PINTEREST_CONFIG_JSON` plus either its referenced access-token variable
+  or referenced Pinterest app client-ID and client-secret variables. For a
+  Dopa-owned Pinterest app, the worker can request and cache an app-owner token
+  with `boards:read,pins:write`, avoiding a monthly manual token replacement.
+  Each account needs a reviewed Pinterest board ID and `pins:write` access. Image
   Pins publish directly; MP4 Pins use Pinterest's register-upload-process flow
   and require an approved HTTPS `cover_image_url` in the provider payload.
 - `DOPA_ETSY_CONFIG_JSON` plus referenced API key and OAuth token variables.

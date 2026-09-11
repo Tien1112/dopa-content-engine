@@ -1,7 +1,10 @@
 import type { ContentPlanItem } from "./types.js";
 
 export interface PinterestAccountDefinition {
-  access_token_env: string;
+  access_token_env?: string;
+  client_id_env?: string;
+  client_secret_env?: string;
+  scopes?: string[];
   board_id: string;
 }
 
@@ -13,6 +16,8 @@ export interface PinterestConfig {
 export interface PinterestReceipt { platform_id: string; platform_url?: string }
 
 export class PinterestPublisher {
+  private readonly tokens = new Map<string, { value: string; expiresAt: number }>();
+
   constructor(
     private readonly config: PinterestConfig,
     private readonly fetchImpl: typeof fetch = fetch,
@@ -28,8 +33,7 @@ export class PinterestPublisher {
     if (!requestedBoard || requestedBoard !== account.board_id) {
       throw new Error("Pinterest board_id does not match the configured account route");
     }
-    const token = process.env[account.access_token_env];
-    if (!token) throw new Error(`Missing Pinterest token environment variable ${account.access_token_env}`);
+    const token = await this.accessToken(item.account_ref, account);
     const media = item.media[0]!;
     const title = item.copy.title?.trim();
     if (!title) throw new Error("Pinterest Pin title is required");
@@ -87,6 +91,42 @@ export class PinterestPublisher {
     const value = await response.json().catch(() => undefined) as { message?: string } | undefined;
     if (!response.ok) throw new Error(`Pinterest API ${response.status}: ${value?.message ?? "request failed"}`);
     return value;
+  }
+
+  private async accessToken(accountRef: string, account: PinterestAccountDefinition): Promise<string> {
+    const directName = account.access_token_env;
+    if (directName) {
+      const direct = process.env[directName];
+      if (!direct) throw new Error(`Missing Pinterest token environment variable ${directName}`);
+      return direct;
+    }
+
+    if (!account.client_id_env || !account.client_secret_env) {
+      throw new Error(`Pinterest account ${accountRef} needs access_token_env or client credential environment variables`);
+    }
+    const cached = this.tokens.get(accountRef);
+    if (cached && cached.expiresAt > Date.now() + 60_000) return cached.value;
+
+    const clientId = process.env[account.client_id_env];
+    const clientSecret = process.env[account.client_secret_env];
+    if (!clientId || !clientSecret) throw new Error(`Missing Pinterest client credentials for ${accountRef}`);
+    const scopes = account.scopes ?? ["boards:read", "pins:write"];
+    if (!scopes.includes("pins:write")) throw new Error(`Pinterest account ${accountRef} must request pins:write`);
+    const response = await this.fetchImpl(`${this.base()}/v5/oauth/token`, {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64")}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ grant_type: "client_credentials", scope: scopes.join(",") }),
+      redirect: "error",
+    });
+    const body = await response.json().catch(() => undefined) as { access_token?: string; expires_in?: number; scope?: string; message?: string } | undefined;
+    if (!response.ok || !body?.access_token) throw new Error(`Pinterest OAuth ${response.status}: ${body?.message ?? "request failed"}`);
+    const granted = new Set(String(body.scope ?? "").split(/[ ,]+/).filter(Boolean));
+    if (!granted.has("pins:write")) throw new Error("Pinterest OAuth token does not include pins:write");
+    this.tokens.set(accountRef, { value: body.access_token, expiresAt: Date.now() + Math.max(60, body.expires_in ?? 3600) * 1000 });
+    return body.access_token;
   }
 
   private base(): string { return (this.config.api_base_url ?? "https://api.pinterest.com").replace(/\/$/, ""); }
