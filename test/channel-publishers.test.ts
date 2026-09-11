@@ -24,6 +24,35 @@ test("Pinterest publisher sends one approved image Pin to the configured board",
   assert.equal(body.board_id, "board-1");
 });
 
+test("Pinterest publisher uploads an MP4 before creating a video Pin", async () => {
+  process.env.TEST_PINTEREST_TOKEN = "pin-token";
+  const calls: string[] = [];
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input); calls.push(`${init?.method ?? "GET"} ${url}`);
+    if (url.endsWith("/v5/media") && init?.method === "POST") return new Response(JSON.stringify({ media_id: "media-7", upload_url: "https://upload.example/video", upload_parameters: { key: "uploads/video" } }), { status: 201 });
+    if (url === "https://assets.example/pin.mp4") return new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+    if (url === "https://upload.example/video") return new Response(null, { status: 204 });
+    if (url.endsWith("/v5/media/media-7")) return new Response(JSON.stringify({ status: "succeeded" }), { status: 200 });
+    if (url.endsWith("/v5/pins")) {
+      const body = JSON.parse(String(init?.body));
+      assert.deepEqual(body.media_source, { source_type: "video_id", media_id: "media-7", cover_image_url: "https://assets.example/cover.jpg" });
+      return new Response(JSON.stringify({ id: "pin-video-1" }), { status: 201 });
+    }
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+  const video = { asset_id: "video-1", file: "pin.mp4", public_url: "https://assets.example/pin.mp4", mime_type: "video/mp4" as const, width: 1000, height: 1500, qa: "passed" as const };
+  const item: ContentPlanItem = { item_id: "pv1", channel: "pinterest", content_type: "pin", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [video], copy: { title: "Dopa video", message: "Beschrijving" }, provider_payload: { board_id: "board-1", cover_image_url: "https://assets.example/cover.jpg" } };
+  const receipt = await new PinterestPublisher({ accounts: { dopa: { access_token_env: "TEST_PINTEREST_TOKEN", board_id: "board-1" } } }, fetcher, async () => undefined).publish(item);
+  assert.equal(receipt.platform_id, "pin-video-1");
+  assert.deepEqual(calls, [
+    "POST https://api.pinterest.com/v5/media",
+    "GET https://assets.example/pin.mp4",
+    "POST https://upload.example/video",
+    "GET https://api.pinterest.com/v5/media/media-7",
+    "POST https://api.pinterest.com/v5/pins",
+  ]);
+});
+
 test("Google Business publisher creates a standard local post with CTA", async () => {
   process.env.TEST_GOOGLE_TOKEN = "google-token";
   let request: { url: string; init: RequestInit | undefined } | undefined;
