@@ -7,7 +7,8 @@
     "dopa-render": "dist/src/cli.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "ci:fixture": "node scripts/create-ci-claude-zip.mjs work/ci-input.zip",
     "config:claude-desktop": "npm run build && node scripts/create-claude-desktop-config.mjs",
     "approval:dopa": "npm run build && node scripts/create-local-approval.mjs",
