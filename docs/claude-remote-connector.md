@@ -52,7 +52,7 @@ Zet geen van beide waarden in GitHub, documentatie of chatberichten.
 2. Publiceer de Lovable-app opnieuw; een nieuw secret geldt pas na publish.
 3. De vaste gebruikerslink blijft `https://dopa-content-hub.lovable.app`.
 
-Margot is als reviewer uitgenodigd via `vanderiet.margot@gmail.com`. Ze logt op
+Margot is als reviewer uitgenodigd via `margot@bundleit.app`. Ze logt op
 de vaste link in met de eenmalige e-maillink en heeft geen Lovable-editoraccount
 nodig.
 
