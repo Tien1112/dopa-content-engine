@@ -51,6 +51,13 @@ contract in BigQuery. If the service-account variable is absent, the worker can
 still trigger and audit Airbyte jobs, but it deliberately imports zero analytics
 rows and the Hub continues to report the missing data.
 
+Deploy `config/bigquery/content-performance.sql` after creating or changing an
+Airbyte source. It currently normalizes Shopify orders, paid Meta placement
+results, organic Instagram media/stories and Pinterest account analytics. Paid
+and organic Meta records remain distinguishable through the placement suffix.
+The exact verified connection IDs and remaining account work are maintained in
+`docs/live-readiness.md`.
+
 ## Pinterest without Tailwind
 
 Publishing is performed by the Hub scheduler and the Pinterest API worker. The

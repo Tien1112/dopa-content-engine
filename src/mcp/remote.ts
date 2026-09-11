@@ -71,6 +71,22 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
     },
   }, async (input) => toolResult(await gateway.call("record_user_input", input)));
 
+  server.registerTool("dopa_record_research_signals", {
+    title: "Store sourced Dopa 30 Days research",
+    description: "Store recent, source-backed market and audience signals gathered during a 30 Days research run. Every signal needs an observation date; this stores evidence only and never creates or publishes assets.",
+    inputSchema: {
+      signals: z.array(z.object({
+        topic: z.string().trim().min(2).max(200),
+        evidence: z.string().trim().min(2).max(2000),
+        source_url: z.string().url().max(1000),
+        source_name: z.string().trim().max(120).optional(),
+        observed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        relevance_score: z.number().min(0).max(100),
+        keywords: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
+      }).strict()).min(1).max(50),
+    },
+  }, async (input) => toolResult(await gateway.call("record_research_signals", input)));
+
   server.registerTool("dopa_list_render_jobs", {
     title: "List Dopa productions",
     description: "List Dopa render jobs, QA counts and their Lovable review links. Does not expose storage credentials or change data.",
@@ -156,6 +172,20 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
       content: {
         type: "text",
         text: `Help with this Dopa strategy question: ${strategic_question}\n\nFirst read dopa_get_learning_snapshot for the last 30 days. Combine measured results, 30-days research signals and relevant thoughts or transcripts from the user. Clearly separate evidence from hypotheses. Propose a small set of strategies, campaign concepts and channel-specific content briefs. Do not create images or animations. The user will make the chosen concepts in Claude Design and then upload them to the Dopa Hub.`,
+      },
+    }],
+  }));
+
+  server.registerPrompt("dopa_run_30days_research", {
+    title: "Run Dopa 30 Days research",
+    description: "Research only the latest 30 days, store verifiable signals, then combine them with Dopa performance and user context.",
+    argsSchema: { research_question: z.string().min(1), market: z.string().min(1).default("Netherlands") },
+  }, ({ research_question, market }) => ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Run a Dopa 30 Days research cycle for: ${research_question}\nMarket: ${market}.\n\nUse your current web-research capability and accept only sources published or materially updated within the latest 30 calendar days. Collect dated evidence about audience language, emerging needs, objections, product demand, search/social patterns and relevant cultural moments. Do not treat repetition as proof. Save the strongest source-backed findings with dopa_record_research_signals, including exact URLs and observation dates. Then read dopa_get_learning_snapshot and propose evidence-labelled campaign hypotheses and content briefs. Never create images or animations and never schedule or publish.`,
       },
     }],
   }));
