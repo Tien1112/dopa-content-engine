@@ -12,6 +12,18 @@ export type DataProvider =
   | "google_business_profile"
   | "google_merchant_center";
 
+export interface OrganicPerformanceRecord {
+  metric_date: string;
+  placement_key: string;
+  external_post_id: string;
+  impressions?: number;
+  reach?: number;
+  engagements?: number;
+  saves?: number;
+  clicks?: number;
+  video_views?: number;
+}
+
 export class HubDataGateway {
   constructor(private readonly endpoint: string, private readonly token: string, private readonly fetchImpl: typeof fetch = fetch) {
     const url = new URL(endpoint);
@@ -20,6 +32,11 @@ export class HubDataGateway {
   }
   async health(): Promise<void> { const value = await this.action<{ ok: boolean; version: number }>({ action: "health" }); if (!value.ok || value.version !== 1) throw new Error("Data gateway health check failed"); }
   async start(provider: DataProvider, connectionRef: string, airbyteJobId: number): Promise<string> { const value = await this.action<{ run_id: string }>({ action: "start_run", provider, connection_ref: connectionRef, airbyte_job_id: airbyteJobId }); if (!value.run_id) throw new Error("Data gateway returned no run_id"); return value.run_id; }
+  async startMetaOrganic(provider: "facebook" | "instagram"): Promise<string> { const value = await this.action<{ run_id: string }>({ action: "start_meta_organic_run", provider }); if (!value.run_id) throw new Error("Data gateway returned no organic run_id"); return value.run_id; }
+  async upsertMetaOrganic(provider: "facebook" | "instagram", runId: string, records: readonly OrganicPerformanceRecord[]): Promise<{ received: number; unmatched_records: number }> {
+    if (records.length === 0) return { received: 0, unmatched_records: 0 };
+    return this.action({ action: "upsert_meta_organic", provider, run_id: runId, records });
+  }
   async complete(runId: string, status: AirbyteJobStatus, error?: string): Promise<void> { await this.action({ action: "complete_run", run_id: runId, status, error_text: error ? safe(error) : null }); }
   private async action<T>(body: Record<string, unknown>): Promise<T> {
     const response = await this.fetchImpl(this.endpoint, { method: "POST", headers: { "content-type": "application/json", "x-dopa-data-worker-token": this.token }, body: JSON.stringify(body), redirect: "error" });
