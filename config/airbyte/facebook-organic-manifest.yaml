@@ -1,0 +1,154 @@
+version: 7.0.4
+type: DeclarativeSource
+
+check:
+  type: CheckStream
+  stream_names:
+    - facebook_page_posts
+
+definitions:
+  authenticator:
+    type: BearerAuthenticator
+    api_token: "{{ config['access_token'] }}"
+  paginator:
+    type: DefaultPaginator
+    pagination_strategy:
+      type: CursorPagination
+      cursor_value: "{{ response.get('paging', {}).get('cursors', {}).get('after') }}"
+      stop_condition: "{{ not response.get('paging', {}).get('next') }}"
+    page_token_option:
+      type: RequestOption
+      field_name: after
+      inject_into: request_parameter
+
+streams:
+  - type: DeclarativeStream
+    name: facebook_page_posts
+    primary_key:
+      - id
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $schema: http://json-schema.org/schema#
+        type: object
+        properties:
+          id:
+            type: string
+          created_time:
+            type: [string, "null"]
+            format: date-time
+          message:
+            type: [string, "null"]
+          permalink_url:
+            type: [string, "null"]
+          shares:
+            type: [object, "null"]
+          comments:
+            type: [object, "null"]
+          reactions:
+            type: [object, "null"]
+    retriever:
+      type: SimpleRetriever
+      requester:
+        type: HttpRequester
+        url_base: https://graph.facebook.com/v25.0/
+        path: "{{ config['page_id'] }}/published_posts"
+        http_method: GET
+        authenticator: "#/definitions/authenticator"
+        request_parameters:
+          fields: id,created_time,message,permalink_url,shares,comments.limit(0).summary(true),reactions.limit(0).summary(true)
+          limit: "100"
+          since: "{{ config['start_date'] }}"
+      record_selector:
+        type: RecordSelector
+        extractor:
+          type: DpathExtractor
+          field_path: [data]
+      paginator: "#/definitions/paginator"
+
+  - type: DeclarativeStream
+    name: facebook_page_post_insights
+    primary_key:
+      - post_id
+      - name
+      - period
+    schema_loader:
+      type: InlineSchemaLoader
+      schema:
+        $schema: http://json-schema.org/schema#
+        type: object
+        properties:
+          post_id:
+            type: string
+          id:
+            type: [string, "null"]
+          name:
+            type: string
+          period:
+            type: [string, "null"]
+          values:
+            type: array
+          title:
+            type: [string, "null"]
+          description:
+            type: [string, "null"]
+    transformations:
+      - type: AddFields
+        fields:
+          - path: [post_id]
+            value: "{{ stream_slice['post_id'] }}"
+    retriever:
+      type: SimpleRetriever
+      partition_router:
+        type: SubstreamPartitionRouter
+        parent_stream_configs:
+          - type: ParentStreamConfig
+            stream: "#/streams/0"
+            parent_key: id
+            partition_field: post_id
+      requester:
+        type: HttpRequester
+        url_base: https://graph.facebook.com/v25.0/
+        path: "{{ stream_slice['post_id'] }}/insights"
+        http_method: GET
+        authenticator: "#/definitions/authenticator"
+        request_parameters:
+          metric: post_impressions,post_impressions_unique,post_engaged_users,post_clicks,post_video_views
+          period: lifetime
+          limit: "100"
+      record_selector:
+        type: RecordSelector
+        extractor:
+          type: DpathExtractor
+          field_path: [data]
+      paginator: "#/definitions/paginator"
+
+spec:
+  type: Spec
+  documentation_url: https://developers.facebook.com/docs/graph-api/reference/page/feed
+  connection_specification:
+    $schema: http://json-schema.org/draft-07/schema#
+    type: object
+    required: [page_id, access_token, start_date]
+    properties:
+      page_id:
+        type: string
+        title: Facebook Page ID
+        order: 0
+      access_token:
+        type: string
+        title: Facebook Page access token
+        airbyte_secret: true
+        order: 1
+      start_date:
+        type: string
+        title: Earliest post date
+        description: ISO-8601 date, for example 2026-01-01
+        format: date
+        order: 2
+    additionalProperties: true
+
+metadata:
+  autoImportSchema:
+    facebook_page_posts: false
+    facebook_page_post_insights: false

@@ -116,6 +116,45 @@ instagram_stories AS (
   WHERE story.timestamp IS NOT NULL
 ),
 
+facebook_post_metrics AS (
+  SELECT
+    post_id,
+    MAX(IF(name = 'post_impressions', SAFE_CAST(JSON_VALUE(values, '$[0].value') AS INT64), 0)) AS impressions,
+    MAX(IF(name = 'post_impressions_unique', SAFE_CAST(JSON_VALUE(values, '$[0].value') AS INT64), 0)) AS reach,
+    MAX(IF(name = 'post_engaged_users', SAFE_CAST(JSON_VALUE(values, '$[0].value') AS INT64), 0)) AS engaged_users,
+    MAX(IF(name = 'post_clicks', SAFE_CAST(JSON_VALUE(values, '$[0].value') AS INT64), 0)) AS clicks,
+    MAX(IF(name = 'post_video_views', SAFE_CAST(JSON_VALUE(values, '$[0].value') AS INT64), 0)) AS video_views
+  FROM `dopa-content-hub-507613.dopa_airbyte.facebook_page_post_insights`
+  GROUP BY post_id
+),
+
+facebook_organic AS (
+  SELECT
+    'facebook' AS provider,
+    DATE(posts.created_time, 'Europe/Amsterdam') AS metric_date,
+    'facebook_feed_organic' AS placement_key,
+    posts.id AS external_post_id,
+    NULLIF(REGEXP_EXTRACT(posts.message, r'(?i)(?:code|utm_content)[:= ]+([A-Za-z0-9_-]+)'), '') AS tracking_code,
+    CAST(NULL AS STRING) AS product_ref,
+    COALESCE(metrics.impressions, 0) AS impressions,
+    COALESCE(metrics.reach, 0) AS reach,
+    COALESCE(
+      metrics.engaged_users,
+      COALESCE(SAFE_CAST(JSON_VALUE(posts.reactions, '$.summary.total_count') AS INT64), 0)
+        + COALESCE(SAFE_CAST(JSON_VALUE(posts.comments, '$.summary.total_count') AS INT64), 0)
+        + COALESCE(SAFE_CAST(JSON_VALUE(posts.shares, '$.count') AS INT64), 0)
+    ) AS engagements,
+    0 AS saves,
+    COALESCE(metrics.clicks, 0) AS clicks,
+    COALESCE(metrics.video_views, 0) AS video_views,
+    0 AS ad_spend_cents,
+    0 AS orders,
+    0 AS revenue_cents
+  FROM `dopa-content-hub-507613.dopa_airbyte.facebook_page_posts` AS posts
+  LEFT JOIN facebook_post_metrics AS metrics ON metrics.post_id = posts.id
+  WHERE posts.created_time IS NOT NULL
+),
+
 pinterest_account AS (
   SELECT
     'pinterest' AS provider,
@@ -170,5 +209,6 @@ shopify_orders AS (
 SELECT * FROM meta_paid
 UNION ALL SELECT * FROM instagram_organic
 UNION ALL SELECT * FROM instagram_stories
+UNION ALL SELECT * FROM facebook_organic
 UNION ALL SELECT * FROM pinterest_account
 UNION ALL SELECT * FROM shopify_orders;

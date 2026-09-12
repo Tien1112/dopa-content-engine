@@ -19,9 +19,10 @@ Verified on 2026-09-11 against the Dopa Airbyte workspace and BigQuery project.
 - Google Analytics 4: supply or create the Dopa GA4 numeric Property ID.
 - Google Search Console: verify `sc-domain:dopadispatch.shop` for
   `dopaminedispatch@gmail.com`; OAuth itself has already succeeded.
-- Facebook organic: Airbyte Cloud has no Facebook Pages source in the current
-  catalog. Use the existing Meta collector in this repository or deploy a custom
-  declarative source before declaring this feed live in BigQuery.
+- Facebook organic: the Connector Builder manifest and BigQuery normalization
+  are ready in the repository. Import the manifest, supply the existing Page
+  token in Airbyte, connect both streams to BigQuery and verify the first rows
+  before declaring this feed live.
 - Etsy: authorize the Dopa Etsy shop before enabling publication or ingestion.
 
 Google Business Profile is intentionally excluded while Dopa is a fully online

@@ -33,6 +33,12 @@ step reads the Airbyte destination tables and only then writes the shared
 `content_performance_daily` model. This keeps one auditable data route for
 paid, organic and commerce performance.
 
+Because Airbyte Cloud does not currently expose a maintained Facebook Pages
+source in this workspace, the repository includes a Connector Builder manifest
+at `config/airbyte/facebook-organic-manifest.yaml`. It reads published Page posts
+and lifetime post insights through Graph API v25.0. The Page token remains an
+Airbyte secret and never enters Lovable, Claude or GitHub.
+
 ## BigQuery to Hub bridge
 
 The Railway Airbyte worker now performs the full hand-off after every successful
@@ -53,7 +59,7 @@ rows and the Hub continues to report the missing data.
 
 Deploy `config/bigquery/content-performance.sql` after creating or changing an
 Airbyte source. It currently normalizes Shopify orders, paid Meta placement
-results, organic Instagram media/stories and Pinterest account analytics. Paid
+results, organic Facebook and Instagram posts/stories, and Pinterest account analytics. Paid
 and organic Meta records remain distinguishable through the placement suffix.
 The exact verified connection IDs and remaining account work are maintained in
 `docs/live-readiness.md`.
