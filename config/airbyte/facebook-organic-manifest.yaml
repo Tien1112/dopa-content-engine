@@ -52,11 +52,11 @@ streams:
       requester:
         type: HttpRequester
         url_base: https://graph.facebook.com/v25.0/
-        path: "{{ config['page_id'] }}/published_posts"
+        path: "{{ config['page_id'] }}/posts"
         http_method: GET
         authenticator: "#/definitions/authenticator"
         request_parameters:
-          fields: id,created_time,message,permalink_url,shares,comments.limit(0).summary(true),reactions.limit(0).summary(true)
+          fields: id,created_time,message,permalink_url,shares
           limit: "100"
           since: "{{ config['start_date'] }}"
       record_selector:
@@ -113,7 +113,7 @@ streams:
         http_method: GET
         authenticator: "#/definitions/authenticator"
         request_parameters:
-          metric: post_impressions,post_impressions_unique,post_engaged_users,post_clicks,post_video_views
+          metric: post_media_view,post_clicks_by_type,post_reactions_by_type_total
           period: lifetime
           limit: "100"
       record_selector:
