@@ -180,6 +180,52 @@ pinterest_account AS (
   WHERE date IS NOT NULL
 ),
 
+-- GA4 campaign traffic is kept separate from channel clicks: a session is not
+-- a click. Engaged sessions remain useful for campaign comparison, while the
+-- purchase event stream below owns GA4 order and revenue totals exactly once.
+google_analytics_campaign AS (
+  SELECT
+    'google_analytics' AS provider,
+    SAFE.PARSE_DATE('%Y%m%d', date) AS metric_date,
+    'google_analytics_campaign' AS placement_key,
+    CONCAT('ga4-campaign:', COALESCE(NULLIF(sessionCampaignName, ''), '(not set)')) AS external_post_id,
+    CAST(NULL AS STRING) AS tracking_code,
+    CAST(NULL AS STRING) AS product_ref,
+    0 AS impressions,
+    0 AS reach,
+    COALESCE(engagedSessions, 0) AS engagements,
+    0 AS saves,
+    0 AS clicks,
+    0 AS video_views,
+    0 AS ad_spend_cents,
+    0 AS orders,
+    0 AS revenue_cents
+  FROM `dopa-content-hub-507613.dopa_airbyte.traffic_acquisition_session_campaign_report`
+  WHERE SAFE.PARSE_DATE('%Y%m%d', date) IS NOT NULL
+),
+
+google_analytics_purchases AS (
+  SELECT
+    'google_analytics' AS provider,
+    SAFE.PARSE_DATE('%Y%m%d', date) AS metric_date,
+    'google_analytics_purchase' AS placement_key,
+    CONCAT('ga4-event:', eventName) AS external_post_id,
+    CAST(NULL AS STRING) AS tracking_code,
+    CAST(NULL AS STRING) AS product_ref,
+    0 AS impressions,
+    0 AS reach,
+    0 AS engagements,
+    0 AS saves,
+    0 AS clicks,
+    0 AS video_views,
+    0 AS ad_spend_cents,
+    COALESCE(eventCount, 0) AS orders,
+    CAST(ROUND(COALESCE(totalRevenue, 0) * 100) AS INT64) AS revenue_cents
+  FROM `dopa-content-hub-507613.dopa_airbyte.events_report`
+  WHERE SAFE.PARSE_DATE('%Y%m%d', date) IS NOT NULL
+    AND LOWER(eventName) IN ('purchase', 'in_app_purchase')
+),
+
 shopify_orders AS (
   SELECT
     'shopify' AS provider,
@@ -211,4 +257,6 @@ UNION ALL SELECT * FROM instagram_organic
 UNION ALL SELECT * FROM instagram_stories
 UNION ALL SELECT * FROM facebook_organic
 UNION ALL SELECT * FROM pinterest_account
+UNION ALL SELECT * FROM google_analytics_campaign
+UNION ALL SELECT * FROM google_analytics_purchases
 UNION ALL SELECT * FROM shopify_orders;
