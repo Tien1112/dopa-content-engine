@@ -1,6 +1,6 @@
 # Dopa live readiness
 
-Verified on 2026-09-11 against the Dopa Airbyte workspace and BigQuery project.
+Verified on 2026-09-12 against the Dopa Airbyte workspace and BigQuery project.
 
 ## Working now
 
@@ -13,6 +13,15 @@ Verified on 2026-09-11 against the Dopa Airbyte workspace and BigQuery project.
   - The post-insights stream completed successfully but returned zero metric rows;
     content-level reach, click and engagement metrics still need a Graph API v25
     query that returns data for Dopa's posts.
+- Google Analytics 4 to BigQuery: `04efd5ed-1cb2-443c-b0a2-9d677a7eda9d`
+  - Dopa account: `407648609`
+  - Dopa webshop property: `553701814`
+  - Measurement ID: `G-66V2CK347E`
+  - The Airbyte service account has GA4 Viewer access and the first sync was
+    started on 2026-09-12.
+  - GA4 currently reports that it has not received website data. Install the
+    measurement tag on the production storefront before treating this source
+    as end-to-end conversion proof.
 - BigQuery destination: `563166ae-9065-4a72-9e5a-80f49b053eed`
 - Normalized model: `dopa-content-hub-507613.dopa_airbyte.content_performance_daily`
 - The renderer produces static platform variants and real animated MP4 variants.
@@ -21,7 +30,8 @@ Verified on 2026-09-11 against the Dopa Airbyte workspace and BigQuery project.
 
 ## Account work still required
 
-- Google Analytics 4: supply or create the Dopa GA4 numeric Property ID.
+- Google Analytics 4: install `G-66V2CK347E` on the production storefront and
+  verify that a real visit reaches both GA4 and BigQuery.
 - Google Search Console: verify `sc-domain:dopadispatch.shop` for
   `dopaminedispatch@gmail.com`; OAuth itself has already succeeded.
 - Facebook organic metrics: the Page post feed is live, but the post-insights

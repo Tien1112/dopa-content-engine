@@ -76,7 +76,10 @@ analytics. Tailwind is not part of the production route.
 # Dopa Google-bronnen
 
 Voor Dopa lopen Google-resultaten via Airbyte en niet via tokens in de Hub.
-De ondersteunde Google-bronnen zijn Google Analytics 4, Google Search Console,
-Google Ads en Google Merchant Center. Een Google Bedrijfsprofiel blijft alleen
+De GA4-bron voor property `553701814` repliceert dagelijks via Airbyte naar
+BigQuery. De bron bevat alleen bruikbare website- en conversiedata nadat meet-ID
+`G-66V2CK347E` op de productie-storefront is geplaatst. De overige ondersteunde
+Google-bronnen zijn Google Search Console, Google Ads en Google Merchant Center.
+Een Google Bedrijfsprofiel blijft alleen
 beschikbaar voor merken die klanten fysiek ontvangen of op locatie bedienen;
 voor de volledig online Dopa-winkel wordt die bron niet geactiveerd.
