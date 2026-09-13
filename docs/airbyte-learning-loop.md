@@ -78,8 +78,10 @@ analytics. Tailwind is not part of the production route.
 Voor Dopa lopen Google-resultaten via Airbyte en niet via tokens in de Hub.
 De GA4-bron voor property `553701814` repliceert dagelijks via Airbyte naar
 BigQuery. De bron bevat alleen bruikbare website- en conversiedata nadat meet-ID
-`G-66V2CK347E` op de productie-storefront is geplaatst. De overige ondersteunde
-Google-bronnen zijn Google Search Console, Google Ads en Google Merchant Center.
+`G-66V2CK347E` op de productie-storefront is geplaatst. Google Search Console
+repliceert de property `sc-domain:dopadispatch.shop` dagelijks via verbinding
+`4aad56c7-e83c-427c-86a8-42efac0515f8`. De overige ondersteunde Google-bronnen
+zijn Google Ads en Google Merchant Center.
 Een Google Bedrijfsprofiel blijft alleen
 beschikbaar voor merken die klanten fysiek ontvangen of op locatie bedienen;
 voor de volledig online Dopa-winkel wordt die bron niet geactiveerd.

@@ -1,6 +1,6 @@
 # Dopa live readiness
 
-Verified on 2026-09-12 against the Dopa Airbyte workspace and BigQuery project.
+Verified on 2026-09-13 against the Dopa Airbyte workspace and BigQuery project.
 
 ## Working now
 
@@ -22,6 +22,16 @@ Verified on 2026-09-12 against the Dopa Airbyte workspace and BigQuery project.
   - GA4 currently reports that it has not received website data. Install the
     measurement tag on the production storefront before treating this source
     as end-to-end conversion proof.
+- Google Search Console to BigQuery: `4aad56c7-e83c-427c-86a8-42efac0515f8`
+  - Source: `f851f5a6-6c7a-4142-8b56-786091bc4e64`
+  - Property: `sc-domain:dopadispatch.shop`
+  - OAuth account: `dopaminedispatch@gmail.com`, with Full User access granted
+    by the verified property owner.
+  - Twelve search-performance streams are enabled; `sites` and `sitemaps` are
+    intentionally excluded because they are not needed for content performance
+    and the connector returned a 404 for `sites` during setup.
+  - The first sync on 2026-09-13 extracted more than 339 real Search Console
+    records while the initial destination load was still running.
 - BigQuery destination: `563166ae-9065-4a72-9e5a-80f49b053eed`
 - Normalized model: `dopa-content-hub-507613.dopa_airbyte.content_performance_daily`
 - The renderer produces static platform variants and real animated MP4 variants.
@@ -32,8 +42,6 @@ Verified on 2026-09-12 against the Dopa Airbyte workspace and BigQuery project.
 
 - Google Analytics 4: install `G-66V2CK347E` on the production storefront and
   verify that a real visit reaches both GA4 and BigQuery.
-- Google Search Console: verify `sc-domain:dopadispatch.shop` for
-  `dopaminedispatch@gmail.com`; OAuth itself has already succeeded.
 - Facebook organic metrics: the Page post feed is live, but the post-insights
   stream currently returns zero records. Do not treat reach, clicks or reactions
   as verified until at least one real metric row is visible in BigQuery.
