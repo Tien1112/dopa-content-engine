@@ -59,8 +59,14 @@ rows and the Hub continues to report the missing data.
 
 Deploy `config/bigquery/content-performance.sql` after creating or changing an
 Airbyte source. It currently normalizes Shopify orders, paid Meta placement
-results, organic Facebook and Instagram posts/stories, and Pinterest account analytics. Paid
-and organic Meta records remain distinguishable through the placement suffix.
+results, organic Facebook and Instagram posts/stories, Pinterest account analytics,
+GA4 campaign/purchase results and Google Search Console page/query performance.
+Search Console uses one row per date, landing page and query: `product_ref`
+contains the page, `tracking_code` the query and `placement_key` is
+`google_search_console_organic`. Paid and organic Meta records remain
+distinguishable through the placement suffix.
+Use `npm run deploy:bigquery` in an environment containing the documented
+BigQuery variables; the deployer never prints the service-account credential.
 The exact verified connection IDs and remaining account work are maintained in
 `docs/live-readiness.md`.
 

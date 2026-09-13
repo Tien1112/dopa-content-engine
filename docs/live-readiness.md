@@ -32,6 +32,10 @@ Verified on 2026-09-13 against the Dopa Airbyte workspace and BigQuery project.
     and the connector returned a 404 for `sites` during setup.
   - The first sync on 2026-09-13 extracted more than 339 real Search Console
     records while the initial destination load was still running.
+  - The eleven selected destination tables and the live all-fields schema were
+    verified in BigQuery on 2026-09-13. The normalized model now includes one
+    organic performance row per date, landing page and search query as soon as
+    Airbyte commits the first destination records.
 - BigQuery destination: `563166ae-9065-4a72-9e5a-80f49b053eed`
 - Normalized model: `dopa-content-hub-507613.dopa_airbyte.content_performance_daily`
 - The renderer produces static platform variants and real animated MP4 variants.

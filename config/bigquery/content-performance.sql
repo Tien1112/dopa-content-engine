@@ -180,6 +180,34 @@ pinterest_account AS (
   WHERE date IS NOT NULL
 ),
 
+-- Aggregate country/device rows to one landing-page/query/day record. This
+-- preserves content and topic evidence without treating device splits as
+-- separate pieces of content in the learning loop.
+google_search_console AS (
+  SELECT
+    'google_search_console' AS provider,
+    date AS metric_date,
+    'google_search_console_organic' AS placement_key,
+    CONCAT(
+      'gsc:',
+      TO_HEX(SHA256(CONCAT(COALESCE(page, ''), '|', COALESCE(query, ''))))
+    ) AS external_post_id,
+    NULLIF(query, '') AS tracking_code,
+    NULLIF(page, '') AS product_ref,
+    SUM(COALESCE(impressions, 0)) AS impressions,
+    0 AS reach,
+    0 AS engagements,
+    0 AS saves,
+    SUM(COALESCE(clicks, 0)) AS clicks,
+    0 AS video_views,
+    0 AS ad_spend_cents,
+    0 AS orders,
+    0 AS revenue_cents
+  FROM `dopa-content-hub-507613.dopa_airbyte.search_analytics_all_fields`
+  WHERE date IS NOT NULL
+  GROUP BY date, page, query
+),
+
 -- GA4 campaign traffic is kept separate from channel clicks: a session is not
 -- a click. Engaged sessions remain useful for campaign comparison, while the
 -- purchase event stream below owns GA4 order and revenue totals exactly once.
@@ -257,6 +285,7 @@ UNION ALL SELECT * FROM instagram_organic
 UNION ALL SELECT * FROM instagram_stories
 UNION ALL SELECT * FROM facebook_organic
 UNION ALL SELECT * FROM pinterest_account
+UNION ALL SELECT * FROM google_search_console
 UNION ALL SELECT * FROM google_analytics_campaign
 UNION ALL SELECT * FROM google_analytics_purchases
 UNION ALL SELECT * FROM shopify_orders;
