@@ -11,6 +11,10 @@ the live Content Hub database.
 - Pinterest to BigQuery: `1074aac1-6530-4ce1-94bf-5c4c557848a4`
 - Facebook organic to BigQuery: `8515892f-1372-4d1b-9b29-4b524c61a6f7`
   - The first sync on 2026-09-12 loaded 17 Page posts.
+  - Connector version 2 also requests reaction and comment summaries directly
+    on each Page post. Airbyte job `105520120` succeeded with this version on
+    2026-09-14; its Hub import correctly loaded zero current-window rows because
+    all existing Dopa Page posts predate the worker's 35-day lookback.
   - The post-insights stream completed successfully but returned zero metric rows;
     content-level reach, click and engagement metrics still need a Graph API v25
     query that returns data for Dopa's posts.

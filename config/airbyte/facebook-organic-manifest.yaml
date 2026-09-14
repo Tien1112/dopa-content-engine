@@ -56,7 +56,7 @@ streams:
         http_method: GET
         authenticator: "#/definitions/authenticator"
         request_parameters:
-          fields: id,created_time,message,permalink_url,shares
+          fields: "id,created_time,message,permalink_url,shares,reactions.limit(0).summary(true),comments.limit(0).summary(true)"
           limit: "100"
           since: "{{ config['start_date'] }}"
       record_selector:
