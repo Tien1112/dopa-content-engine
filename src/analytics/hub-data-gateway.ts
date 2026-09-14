@@ -1,5 +1,7 @@
 import type { AirbyteJobStatus } from "./airbyte.js";
 
+export type DataGatewayCompletionStatus = Extract<AirbyteJobStatus, "succeeded" | "failed" | "cancelled">;
+
 export type DataProvider =
   | "facebook"
   | "instagram"
@@ -37,7 +39,7 @@ export class HubDataGateway {
   }
   async health(): Promise<void> { const value = await this.action<{ ok: boolean; version: number }>({ action: "health" }); if (!value.ok || value.version !== 1) throw new Error("Data gateway health check failed"); }
   async start(provider: DataProvider, connectionRef: string, airbyteJobId: number): Promise<string> { const value = await this.action<{ run_id: string }>({ action: "start_run", provider, connection_ref: connectionRef, airbyte_job_id: airbyteJobId }); if (!value.run_id) throw new Error("Data gateway returned no run_id"); return value.run_id; }
-  async complete(runId: string, status: AirbyteJobStatus, error?: string, rowsLoaded?: number): Promise<void> {
+  async complete(runId: string, status: DataGatewayCompletionStatus, error?: string, rowsLoaded?: number): Promise<void> {
     await this.action({
       action: "complete_run",
       run_id: runId,

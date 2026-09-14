@@ -1,5 +1,5 @@
-import { AirbyteClient } from "./airbyte.js";
-import { HubDataGateway, type DataProvider } from "./hub-data-gateway.js";
+import { AirbyteClient, type AirbyteJobStatus } from "./airbyte.js";
+import { HubDataGateway, type DataGatewayCompletionStatus, type DataProvider } from "./hub-data-gateway.js";
 import { BigQueryPerformanceReader, type PerformanceScope } from "./bigquery.js";
 
 export type AirbyteImport = { provider: DataProvider; scope: PerformanceScope };
@@ -25,7 +25,7 @@ export async function runAirbyteWorker(): Promise<void> {
         if (finished.status !== "succeeded") {
           await Promise.all(runs.map(({ runId }) => gateway.complete(
             runId,
-            finished.status,
+            hubCompletionStatus(finished.status),
             `Airbyte job ${finished.jobId} ended as ${finished.status}`,
           )));
           continue;
@@ -44,6 +44,13 @@ export async function runAirbyteWorker(): Promise<void> {
     if (once) return;
     await new Promise((resolve) => setTimeout(resolve, interval));
   } while (true);
+}
+
+/** Airbyte's terminal `incomplete` means failure for the Hub's three-state contract. */
+export function hubCompletionStatus(status: AirbyteJobStatus): DataGatewayCompletionStatus {
+  if (status === "incomplete") return "failed";
+  if (["succeeded", "failed", "cancelled"].includes(status)) return status as DataGatewayCompletionStatus;
+  throw new Error(`Airbyte job is not terminal (${status})`);
 }
 
 export function configuredConnections(raw = required("DOPA_AIRBYTE_CONNECTIONS_JSON")): AirbyteConnectionRoute[] {

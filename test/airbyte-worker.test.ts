@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { configuredConnections } from "../src/analytics/airbyte-worker.js";
+import { configuredConnections, hubCompletionStatus } from "../src/analytics/airbyte-worker.js";
 
 const SHOPIFY = "bce72712-f24e-4f0c-a294-1675e13c2c5d";
 const META = "48100480-4084-44cc-a01a-ba50e54d04c1";
@@ -31,4 +31,10 @@ test("legacy Airbyte provider map remains supported", () => {
 test("Airbyte route config rejects invalid IDs and scopes", () => {
   assert.throws(() => configuredConnections('[{"name":"bad","connection_id":"no","imports":[{"provider":"shopify"}]}]'), /Invalid Airbyte connection ID/);
   assert.throws(() => configuredConnections(`[{"name":"bad","connection_id":"${SHOPIFY}","imports":[{"provider":"shopify","scope":"wrong"}]}]`), /Invalid scope/);
+});
+
+test("Airbyte incomplete is recorded as a failed Hub run", () => {
+  assert.equal(hubCompletionStatus("incomplete"), "failed");
+  assert.equal(hubCompletionStatus("cancelled"), "cancelled");
+  assert.throws(() => hubCompletionStatus("running"), /not terminal/);
 });
