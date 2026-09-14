@@ -14,3 +14,14 @@ test("BigQuery normalization includes content-level Search Console evidence", as
   assert.match(sql, /NULLIF\(page, ''\) AS product_ref/);
   assert.match(sql, /UNION ALL SELECT \* FROM google_search_console/);
 });
+
+test("BigQuery normalization keeps Shopify and Etsy commerce distinct", async () => {
+  const sql = await readFile(resolve("config/bigquery/content-performance.sql"), "utf8");
+
+  assert.match(sql, /shopify_orders AS \(/);
+  assert.match(sql, /etsy_orders AS \(/);
+  assert.match(sql, /'shopify' AS provider/);
+  assert.match(sql, /'etsy' AS provider/);
+  assert.match(sql, /UNION ALL SELECT \* FROM shopify_orders/);
+  assert.match(sql, /UNION ALL SELECT \* FROM etsy_orders/);
+});

@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createRemoteMcpApp, remoteMcpUrl } from "../src/mcp/remote.js";
+import { buildRemoteDopaServer, createRemoteMcpApp, remoteMcpUrl } from "../src/mcp/remote.js";
 
 const token = "0123456789abcdef0123456789abcdef";
 const gatewayToken = "abcdef0123456789abcdef0123456789";
@@ -51,4 +51,20 @@ test("remote MCP hides the endpoint and exposes safe Dopa tools", async () => {
 
 test("remote MCP requires a long secret", () => {
   assert.throws(() => createRemoteMcpApp({ mcpUrlToken: "short", gatewayToken }), /at least 32/);
+});
+
+test("30-days prompt explicitly routes through the installed Last30Days skill", async () => {
+  const server = buildRemoteDopaServer({
+    mcpUrlToken: token,
+    gatewayToken,
+    gatewayUrl: "https://gateway.example/api",
+    fetchImpl: async () => Response.json({ ok: true }),
+  });
+
+  // The SDK stores registered prompts internally; this assertion protects the
+  // user-facing integration wording without requiring a local listening port.
+  const prompt = (server as unknown as { _registeredPrompts: Record<string, { callback: (args: Record<string, string>) => unknown }> })
+    ._registeredPrompts.dopa_run_30days_research;
+  assert.ok(prompt);
+  assert.match(JSON.stringify(prompt.callback({ research_question: "gift trends", market: "Netherlands" })), /Last30Days skill by mvanhorn/);
 });

@@ -185,7 +185,7 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
       role: "user",
       content: {
         type: "text",
-        text: `Run a Dopa 30 Days research cycle for: ${research_question}\nMarket: ${market}.\n\nUse your current web-research capability and accept only sources published or materially updated within the latest 30 calendar days. Collect dated evidence about audience language, emerging needs, objections, product demand, search/social patterns and relevant cultural moments. Do not treat repetition as proof. Save the strongest source-backed findings with dopa_record_research_signals, including exact URLs and observation dates. Then read dopa_get_learning_snapshot and propose evidence-labelled campaign hypotheses and content briefs. Never create images or animations and never schedule or publish.`,
+        text: `Run a Dopa 30 Days research cycle for: ${research_question}\nMarket: ${market}.\n\nIf the Last30Days skill by mvanhorn is installed in this conversation client, invoke it for the research step. Otherwise use the client's current web-research capability. Accept only sources published or materially updated within the latest 30 calendar days. Collect dated evidence about audience language, emerging needs, objections, product demand, search/social patterns and relevant cultural moments. Do not treat repetition as proof. Save the strongest source-backed findings with dopa_record_research_signals, including exact URLs and observation dates. Then read dopa_get_learning_snapshot and propose evidence-labelled campaign hypotheses and content briefs. Never create images or animations and never schedule or publish.`,
       },
     }],
   }));

@@ -68,6 +68,12 @@ Eerste veilige strategietest:
 > onderzoekssignalen en relevante input uit gesprekken. Geef drie onderbouwde
 > campagne-ideeën en benoem bewijs en onzekerheden. Maak geen beelden.
 
+Voor actueel marktonderzoek installeert de gebruiker daarnaast de officiële
+`mvanhorn/last30days-skill` in dezelfde chatomgeving. De prompt
+`dopa_run_30days_research` laat die skill het onderzoek uitvoeren, bewaart de
+sterkste gedateerde bronnen via de Dopa-connector en combineert ze daarna met
+de meetdata. Zie `docs/last30days-skill.md`.
+
 Daarna:
 
 > Lees het huidige Dopa-contentplan. Bespreek eerst captions, hashtags,

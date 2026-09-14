@@ -65,6 +65,12 @@ Search Console uses one row per date, landing page and query: `product_ref`
 contains the page, `tracking_code` the query and `placement_key` is
 `google_search_console_organic`. Paid and organic Meta records remain
 distinguishable through the placement suffix.
+
+Etsy uses the read-only Connector Builder manifest at
+`config/airbyte/etsy-manifest.yaml`. It replicates shop receipts and active
+listings to BigQuery. The normalized model records gross paid, non-cancelled
+receipts as Etsy orders; refunds and marketplace fees remain a separate ledger
+concern and are not silently presented as net revenue.
 Use `npm run deploy:bigquery` in an environment containing the documented
 BigQuery variables; the deployer never prints the service-account credential.
 The exact verified connection IDs and remaining account work are maintained in

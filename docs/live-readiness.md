@@ -59,7 +59,10 @@ the live Content Hub database.
 - Facebook organic metrics: the Page post feed is live, but the post-insights
   stream currently returns zero records. Do not treat reach, clicks or reactions
   as verified until at least one real metric row is visible in BigQuery.
-- Etsy: authorize the Dopa Etsy shop before enabling publication or ingestion.
+- Etsy: Dopa OAuth and the approval-gated publisher are configured. The
+  read-only Airbyte manifest and BigQuery normalization are implemented, but the
+  custom source still needs to be created in Airbyte and must complete one real
+  receipt sync before Etsy ingestion counts as live.
 
 Google Business Profile is intentionally excluded while Dopa is a fully online
 business without in-person customer contact.

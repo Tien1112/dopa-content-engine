@@ -278,6 +278,35 @@ shopify_orders AS (
   WHERE created_at IS NOT NULL
     AND cancelled_at IS NULL
     AND COALESCE(test, FALSE) = FALSE
+),
+
+-- Etsy receipts are commerce attribution, not accounting. Gross receipt value
+-- is normalized here; refunds and Etsy fees belong in a later ledger model.
+etsy_orders AS (
+  SELECT
+    'etsy' AS provider,
+    DATE(TIMESTAMP_SECONDS(create_timestamp), 'Europe/Amsterdam') AS metric_date,
+    'etsy_order' AS placement_key,
+    CAST(receipt_id AS STRING) AS external_post_id,
+    CAST(NULL AS STRING) AS tracking_code,
+    CAST(JSON_VALUE(transactions, '$[0].listing_id') AS STRING) AS product_ref,
+    0 AS impressions,
+    0 AS reach,
+    0 AS engagements,
+    0 AS saves,
+    0 AS clicks,
+    0 AS video_views,
+    0 AS ad_spend_cents,
+    1 AS orders,
+    CAST(ROUND(
+      COALESCE(SAFE_CAST(JSON_VALUE(grandtotal, '$.amount') AS NUMERIC), 0)
+      / NULLIF(COALESCE(SAFE_CAST(JSON_VALUE(grandtotal, '$.divisor') AS NUMERIC), 100), 0)
+      * 100
+    ) AS INT64) AS revenue_cents
+  FROM `dopa-content-hub-507613.dopa_airbyte.etsy_shop_receipts`
+  WHERE create_timestamp IS NOT NULL
+    AND COALESCE(is_paid, FALSE) = TRUE
+    AND LOWER(COALESCE(status, '')) NOT IN ('canceled', 'cancelled', 'fully refunded')
 )
 
 SELECT * FROM meta_paid
@@ -288,4 +317,5 @@ UNION ALL SELECT * FROM pinterest_account
 UNION ALL SELECT * FROM google_search_console
 UNION ALL SELECT * FROM google_analytics_campaign
 UNION ALL SELECT * FROM google_analytics_purchases
-UNION ALL SELECT * FROM shopify_orders;
+UNION ALL SELECT * FROM shopify_orders
+UNION ALL SELECT * FROM etsy_orders;
