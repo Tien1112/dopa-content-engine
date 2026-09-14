@@ -73,8 +73,23 @@ async function parse(response: Response, label: string): Promise<unknown> {
   if (Buffer.byteLength(text) > 1024 * 1024) throw new Error(`${label} response exceeds 1 MB`);
   let body: unknown;
   try { body = JSON.parse(text); } catch { throw new Error(`${label} returned invalid JSON`); }
-  if (!response.ok) throw new Error(`${label} failed (${response.status})`);
+  if (!response.ok) {
+    const detail = airbyteErrorDetail(body);
+    throw new Error(`${label} failed (${response.status})${detail ? `: ${detail}` : ""}`);
+  }
   return body;
+}
+
+/** Airbyte uses RFC 7807 errors. Keep only its public title/detail and bound log size. */
+function airbyteErrorDetail(body: unknown): string {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return "";
+  const value = body as Record<string, unknown>;
+  const candidate = typeof value.detail === "string"
+    ? value.detail
+    : typeof value.title === "string"
+      ? value.title
+      : "";
+  return candidate.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240);
 }
 
 function uuid(value: string): string {

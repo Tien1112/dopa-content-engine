@@ -22,3 +22,26 @@ test("Airbyte client rejects malformed connection IDs before a sync", async () =
   const client = new AirbyteClient({ client_id_env: "TEST_AIRBYTE_CLIENT", client_secret_env: "TEST_AIRBYTE_SECRET" });
   await assert.rejects(() => client.triggerSync("not-a-uuid"), /Invalid Airbyte connection ID/);
 });
+
+test("Airbyte client exposes a bounded public API error detail", async () => {
+  process.env.TEST_AIRBYTE_CLIENT = "client";
+  process.env.TEST_AIRBYTE_SECRET = "secret";
+  const fetcher: typeof fetch = async (input) => {
+    if (String(input).endsWith("/v1/applications/token")) {
+      return Response.json({ access_token: "token" });
+    }
+    return Response.json(
+      { title: "conflict", detail: `Connection already running\n${"x".repeat(300)}` },
+      { status: 409 },
+    );
+  };
+  const client = new AirbyteClient(
+    { client_id_env: "TEST_AIRBYTE_CLIENT", client_secret_env: "TEST_AIRBYTE_SECRET" },
+    fetcher,
+  );
+  await assert.rejects(
+    () => client.triggerSync("01928891-2508-4049-ae15-bcf755834153"),
+    (error: Error) => error.message.startsWith("Airbyte /v1/jobs failed (409): Connection already running ")
+      && error.message.length <= 280,
+  );
+});

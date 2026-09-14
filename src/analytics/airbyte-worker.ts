@@ -23,7 +23,11 @@ export async function runAirbyteWorker(): Promise<void> {
         }
         const finished = await client.waitForJob(started.jobId);
         if (finished.status !== "succeeded") {
-          await Promise.all(runs.map(({ runId }) => gateway.complete(runId, finished.status, `Airbyte job ended as ${finished.status}`)));
+          await Promise.all(runs.map(({ runId }) => gateway.complete(
+            runId,
+            finished.status,
+            `Airbyte job ${finished.jobId} ended as ${finished.status}`,
+          )));
           continue;
         }
         for (const { importConfig, runId } of runs) {
