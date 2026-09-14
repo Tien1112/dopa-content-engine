@@ -28,15 +28,14 @@ the live Content Hub database.
   - Property: `sc-domain:dopadispatch.shop`
   - OAuth account: `dopaminedispatch@gmail.com`, with Full User access granted
     by the verified property owner.
-  - Twelve search-performance streams are enabled; `sites` and `sitemaps` are
-    intentionally excluded because they are not needed for content performance
-    and the connector returned a 404 for `sites` during setup.
-  - The first sync on 2026-09-13 extracted more than 339 real Search Console
-    records while the initial destination load was still running.
-  - The eleven selected destination tables and the live all-fields schema were
-    verified in BigQuery on 2026-09-13. The normalized model now includes one
-    organic performance row per date, landing page and search query as soon as
-    Airbyte commits the first destination records.
+  - `always_use_aggregation_type_auto` is enabled because Google rejected the
+    connector's earlier `byProperty` aggregation request.
+  - Airbyte job `105516311` succeeded on 2026-09-14. The worker then loaded ten
+    real normalized rows into the live Hub, proving the complete
+    Search Console -> Airbyte -> BigQuery -> Hub route.
+  - Only `search_analytics_all_fields` remains enabled. The other thirteen
+    streams are unnecessary for the content-performance model and were disabled
+    after the successful recovery run to reduce sync time and data volume.
 - BigQuery destination: `563166ae-9065-4a72-9e5a-80f49b053eed`
 - Normalized model: `dopa-content-hub-507613.dopa_airbyte.content_performance_daily`
 - All eight verified Dopa ingestion routes are registered in the live Hub:
@@ -50,6 +49,9 @@ the live Content Hub database.
 
 - Google Analytics 4: verify that a real production visit reaches both GA4 and
   BigQuery.
+- Search Console: monitor the next scheduled one-stream sync. The first complete
+  live run is proven, but the optimized configuration still needs its next
+  scheduled-run observation.
 - Facebook organic metrics: the Page post feed is live, but the post-insights
   stream currently returns zero records. Do not treat reach, clicks or reactions
   as verified until at least one real metric row is visible in BigQuery.
