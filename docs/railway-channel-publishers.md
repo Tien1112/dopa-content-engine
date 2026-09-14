@@ -24,7 +24,11 @@ they do not contain access tokens themselves:
   Each account needs a reviewed Pinterest board ID and `pins:write` access. Image
   Pins publish directly; MP4 Pins use Pinterest's register-upload-process flow
   and require an approved HTTPS `cover_image_url` in the provider payload.
-- `DOPA_ETSY_CONFIG_JSON` plus referenced API key and OAuth token variables.
+- `DOPA_ETSY_CONFIG_JSON` plus the referenced API-key, Etsy client-ID and OAuth
+  refresh-token variables. A static access-token variable remains supported for
+  one-shot diagnostics, but production should use `client_id_env` and
+  `refresh_token_env`; the worker then refreshes Etsy's short-lived access token
+  immediately before dispatch.
   Etsy creates a draft, uploads the QA-passed image and activates only when the
   approved provider payload explicitly contains `publish: true`.
 - `DOPA_GOOGLE_BUSINESS_CONFIG_JSON` plus its referenced OAuth token variable.

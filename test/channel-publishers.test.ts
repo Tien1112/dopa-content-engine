@@ -121,6 +121,34 @@ test("Etsy publisher creates draft, uploads approved image and then activates", 
   ]);
 });
 
+test("Etsy publisher refreshes its short-lived OAuth token before dispatch", async () => {
+  process.env.TEST_ETSY_KEY = "etsy-key";
+  process.env.TEST_ETSY_CLIENT_ID = "etsy-client";
+  process.env.TEST_ETSY_REFRESH = "etsy-refresh";
+  const calls: string[] = [];
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input); calls.push(`${init?.method ?? "GET"} ${url}`);
+    if (url.endsWith("/public/oauth/token")) {
+      assert.equal(String(init?.body), "grant_type=refresh_token&client_id=etsy-client&refresh_token=etsy-refresh");
+      return new Response(JSON.stringify({ access_token: "fresh-token", expires_in: 3600 }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (url.endsWith("/listings")) {
+      assert.equal((init?.headers as Record<string, string>).authorization, "Bearer fresh-token");
+      return new Response(JSON.stringify({ listing_id: 456 }), { status: 201, headers: { "content-type": "application/json" } });
+    }
+    if (url === image.public_url) return new Response(new Uint8Array([1]), { status: 200, headers: { "content-length": "1" } });
+    if (url.endsWith("/images")) return new Response(JSON.stringify({ listing_image_id: 789 }), { status: 201, headers: { "content-type": "application/json" } });
+    return new Response("not found", { status: 404 });
+  }) as typeof fetch;
+  const publisher = new EtsyPublisher({ accounts: { dopa: {
+    api_key_env: "TEST_ETSY_KEY", client_id_env: "TEST_ETSY_CLIENT_ID",
+    refresh_token_env: "TEST_ETSY_REFRESH", shop_id: "123",
+  } } }, fetcher);
+  const item: ContentPlanItem = { item_id: "e-refresh", channel: "etsy", content_type: "listing", account_ref: "dopa", publish_at: "2026-09-10T09:00:00+02:00", media: [image], copy: { title: "Dopa kaart", message: "Beschrijving" }, provider_payload: { price: 12.5, quantity: 1, taxonomy_id: 1234, who_made: "i_did", when_made: "2020_2026", is_supply: false, publish: false } };
+  await publisher.publish(item);
+  assert.equal(calls[0], "POST https://api.etsy.com/v3/public/oauth/token");
+});
+
 test("Pinterest refuses a board that differs from the approved account route", async () => {
   process.env.TEST_PINTEREST_TOKEN = "pin-token";
   const publisher = new PinterestPublisher({ accounts: { dopa: { access_token_env: "TEST_PINTEREST_TOKEN", board_id: "board-1" } } });

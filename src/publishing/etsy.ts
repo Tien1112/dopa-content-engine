@@ -4,7 +4,11 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
 export interface EtsyAccountDefinition {
   api_key_env: string;
-  access_token_env: string;
+  /** Static access token fallback, mainly for one-shot tests. Etsy tokens expire quickly. */
+  access_token_env?: string;
+  /** Preferred production configuration: refresh an access token before dispatch. */
+  client_id_env?: string;
+  refresh_token_env?: string;
   shop_id: string;
 }
 
@@ -45,8 +49,8 @@ export class EtsyPublisher {
     const account = this.config.accounts[item.account_ref];
     if (!account) throw new Error(`No Etsy configuration for account_ref ${item.account_ref}`);
     const apiKey = process.env[account.api_key_env];
-    const token = process.env[account.access_token_env];
-    if (!apiKey || !token) throw new Error("Missing Etsy API credentials");
+    const token = await this.accessToken(account);
+    if (!apiKey) throw new Error("Missing Etsy API key");
     const base = (this.config.api_base_url ?? "https://openapi.etsy.com/v3/application").replace(/\/$/, "");
     const headers = { authorization: `Bearer ${token}`, "x-api-key": apiKey };
 
@@ -86,6 +90,27 @@ export class EtsyPublisher {
       draft_created: true,
       ...(draft.url && typeof draft.url === "string" ? { platform_url: draft.url } : {})
     };
+  }
+
+  private async accessToken(account: EtsyAccountDefinition): Promise<string> {
+    const clientId = account.client_id_env ? process.env[account.client_id_env] : undefined;
+    const refreshToken = account.refresh_token_env ? process.env[account.refresh_token_env] : undefined;
+    if (clientId && refreshToken) {
+      const response = await this.fetchImpl("https://api.etsy.com/v3/public/oauth/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, refresh_token: refreshToken }),
+      });
+      const body = await response.json().catch(() => undefined) as { access_token?: unknown } | undefined;
+      if (!response.ok || typeof body?.access_token !== "string" || !body.access_token) {
+        throw new Error(`Etsy OAuth refresh failed (${response.status})`);
+      }
+      return body.access_token;
+    }
+
+    const accessToken = account.access_token_env ? process.env[account.access_token_env] : undefined;
+    if (accessToken) return accessToken;
+    throw new Error("Missing Etsy OAuth refresh credentials");
   }
 
   private async formRequest(url: string, method: "POST" | "PATCH", headers: Record<string, string>, fields: Record<string, string>): Promise<Record<string, unknown>> {
