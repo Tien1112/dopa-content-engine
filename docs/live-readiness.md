@@ -60,11 +60,13 @@ the live Content Hub database.
   stream currently returns zero records. Do not treat reach, clicks or reactions
   as verified until at least one real metric row is visible in BigQuery.
 - Etsy: the approval-gated publisher, declarative Airbyte definition and
-  BigQuery normalization are implemented. The live credential check on
-  2026-09-21 failed because Etsy reported the stored refresh token as revoked.
-  Re-authorize Dopa once, store the replacement refresh token in Railway and
-  the Airbyte source, then run `npm run setup:etsy-airbyte`. Etsy is only live
-  after a real receipt or listing reaches BigQuery and the Hub.
+  BigQuery normalization are implemented. Etsy temporarily took the Dopa shop
+  offline because the submitted company details did not exactly match the KvK
+  registration; Dopa has appealed that decision. The revoked refresh token is
+  therefore a symptom of the account suspension, not a connector defect. Do
+  not re-authorize or run live Etsy tests until Etsy restores the shop. After
+  restoration, renew OAuth once, run `npm run setup:etsy-airbyte`, and verify a
+  real receipt or listing in BigQuery and the Hub.
 
 Google Business Profile is intentionally excluded while Dopa is a fully online
 business without in-person customer contact.

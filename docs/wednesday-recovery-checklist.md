@@ -15,6 +15,9 @@ project can be resumed. Do not publish test content without explicit approval.
 9. Run one Claude/ChatGPT strategy cycle using the learning snapshot and Last30Days evidence; verify it proposes but cannot approve or publish.
 10. Record evidence and remaining blockers in `docs/live-readiness.md` before starting Bundle It rollout.
 
-Known prerequisite before step 8: renew the revoked Dopa Etsy OAuth grant and
-store its new refresh token in both Railway and the Airbyte source. Etsy remains
-blocked until a real receipt reaches BigQuery and the Hub.
+External exception to step 8: Etsy temporarily suspended the Dopa shop because
+the submitted company details did not exactly match the KvK registration. Dopa
+has appealed. Leave Etsy untouched until the shop is restored. Only then renew
+OAuth, store the replacement refresh token in Railway and Airbyte, and verify a
+real receipt in BigQuery and the Hub. Etsy does not block the Wednesday recovery
+of the other channels.
