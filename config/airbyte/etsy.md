@@ -25,3 +25,12 @@ receipt is visible in the normalized view and imported into the Hub.
 The current performance view treats a paid, non-cancelled receipt as one gross
 order and uses `grandtotal` as gross revenue. Refund-aware net revenue should be
 added from Etsy payments/ledger data before using the view for accounting.
+
+For Dopa, `npm run setup:etsy-airbyte` performs the credential hand-off directly
+between the linked Railway project and Airbyte. It never prints source secrets,
+creates the source and daily BigQuery connection idempotently, and starts the
+first sync. Run it only from the linked Dopa Railway project.
+
+After changing the checked-in manifest, run
+`npm run publish:etsy-airbyte-manifest` once. This publishes the new manifest
+before validating the source, creating the connection and starting a sync.

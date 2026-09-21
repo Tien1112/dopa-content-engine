@@ -36,6 +36,8 @@ export interface RemoteMcpOptions {
   gatewayToken: string;
   gatewayUrl?: string;
   fetchImpl?: typeof fetch;
+  /** Hostnames accepted by the HTTP Host-header guard. */
+  allowedHosts?: string[];
 }
 
 export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
@@ -195,7 +197,10 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
 
 export function createRemoteMcpApp(options: RemoteMcpOptions) {
   validateOptions(options);
-  const app = createMcpExpressApp({ host: "0.0.0.0" });
+  const app = createMcpExpressApp({
+    host: "0.0.0.0",
+    allowedHosts: options.allowedHosts ?? ["127.0.0.1", "localhost", "[::1]"],
+  });
 
   app.get("/health", (_request: Request, response: Response) => {
     response.status(200).json({ ok: true, service: "dopa-remote-mcp" });
@@ -275,6 +280,11 @@ function validateOptions(options: RemoteMcpOptions): void {
     const url = new URL(options.gatewayUrl);
     if (url.protocol !== "https:" && url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
       throw new Error("DOPA_CLAUDE_GATEWAY_URL must use HTTPS");
+    }
+  }
+  for (const host of options.allowedHosts ?? []) {
+    if (!host || host.includes("://") || host.includes("/") || host.includes(":")) {
+      throw new Error("MCP allowed hosts must be bare hostnames without scheme, path or port");
     }
   }
 }

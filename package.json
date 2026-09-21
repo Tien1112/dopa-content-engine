@@ -19,6 +19,10 @@
     "publish:hub-channels": "npm run build && node dist/src/publishing/hub-channel-main.js",
     "sync:airbyte": "npm run build && node dist/src/analytics/airbyte-main.js",
     "deploy:bigquery": "node scripts/deploy-bigquery-view.mjs config/bigquery/content-performance.sql",
+    "setup:etsy-airbyte": "node scripts/setup-etsy-airbyte.mjs",
+    "publish:etsy-airbyte-manifest": "node scripts/setup-etsy-airbyte.mjs --publish-manifest",
+    "inspect:etsy-airbyte-manifest": "node scripts/setup-etsy-airbyte.mjs --inspect-only",
+    "check:live-readiness": "node scripts/check-live-readiness.mjs",
     "proof:eye-animation": "node scripts/create-eye-animation-proof.mjs",
     "render:example": "npm run build && node dist/src/cli.js examples/static-design/manifest.json",
     "render:worker": "npm run build && node dist/src/worker/main.js",
@@ -29,6 +33,7 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@resvg/resvg-js": "^2.6.2",
     "playwright": "1.62.1",
+    "yaml": "^2.9.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

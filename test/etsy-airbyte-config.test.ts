@@ -9,13 +9,18 @@ const model = readFileSync(resolve("config/bigquery/content-performance.sql"), "
 test("Etsy Airbyte source is read-only and refreshes OAuth safely", () => {
   assert.match(manifest, /name: etsy_shop_receipts/);
   assert.match(manifest, /name: etsy_active_listings/);
-  assert.match(manifest, /type: OAuthAuthenticator/);
-  assert.match(manifest, /token_refresh_endpoint: https:\/\/api\.etsy\.com\/v3\/public\/oauth\/token/);
+  assert.match(manifest, /type: SessionTokenAuthenticator/);
+  assert.match(manifest, /url_base: https:\/\/api\.etsy\.com\/v3\/public\//);
+  assert.match(manifest, /path: oauth\/token/);
+  assert.match(manifest, /grant_type: refresh_token/);
+  assert.match(manifest, /type: BearerAuthenticator/);
   assert.match(manifest, /x-api-key: "\{\{ config\['api_key'\] \}\}"/);
   assert.match(manifest, /path: "shops\/\{\{ config\['shop_id'\] \}\}\/receipts"/);
   assert.match(manifest, /type: OffsetIncrement/);
   assert.match(manifest, /field_name: offset/);
-  assert.doesNotMatch(manifest, /http_method: (POST|PATCH|PUT|DELETE)/);
+  const resourceMethods = [...manifest.matchAll(/path: "shops\/[\s\S]*?http_method: (GET|POST|PATCH|PUT|DELETE)/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(resourceMethods, ["GET", "GET"]);
   assert.doesNotMatch(manifest, /DOPA_ETSY_(API_KEY|REFRESH_TOKEN)\s*=/);
 });
 

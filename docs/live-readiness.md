@@ -59,10 +59,12 @@ the live Content Hub database.
 - Facebook organic metrics: the Page post feed is live, but the post-insights
   stream currently returns zero records. Do not treat reach, clicks or reactions
   as verified until at least one real metric row is visible in BigQuery.
-- Etsy: Dopa OAuth and the approval-gated publisher are configured. The
-  read-only Airbyte manifest and BigQuery normalization are implemented, but the
-  custom source still needs to be created in Airbyte and must complete one real
-  receipt sync before Etsy ingestion counts as live.
+- Etsy: the approval-gated publisher, declarative Airbyte definition and
+  BigQuery normalization are implemented. The live credential check on
+  2026-09-21 failed because Etsy reported the stored refresh token as revoked.
+  Re-authorize Dopa once, store the replacement refresh token in Railway and
+  the Airbyte source, then run `npm run setup:etsy-airbyte`. Etsy is only live
+  after a real receipt or listing reaches BigQuery and the Hub.
 
 Google Business Profile is intentionally excluded while Dopa is a fully online
 business without in-person customer contact.
@@ -72,3 +74,12 @@ business without in-person customer contact.
 A provider is only marked live after one real account sync or publication has a
 provider receipt and its resulting row is visible in the normalized model. A
 healthy connector with no returned rows is not counted as proof of end-to-end data.
+
+## Operational recovery check
+
+Run `npm run check:live-readiness` from the Railway-linked repository after the
+Lovable Cloud project is active. It checks all five Railway service states,
+required variable names and the authenticated health endpoints for rendering,
+publishing, data ingestion, Claude and the public MCP service. It never prints
+secret values. A green health check is necessary but does not replace the real
+render, publication and data-receipt proofs above.

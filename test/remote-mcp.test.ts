@@ -53,6 +53,26 @@ test("remote MCP requires a long secret", () => {
   assert.throws(() => createRemoteMcpApp({ mcpUrlToken: "short", gatewayToken }), /at least 32/);
 });
 
+test("remote MCP rejects unknown Host headers", async () => {
+  const app = createRemoteMcpApp({
+    mcpUrlToken: token,
+    gatewayToken,
+    allowedHosts: ["mcp.example"],
+  });
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const port = (server.address() as AddressInfo).port;
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/health`, {
+      headers: { host: "attacker.example" },
+    });
+    assert.equal(response.status, 403);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("30-days prompt explicitly routes through the installed Last30Days skill", async () => {
   const server = buildRemoteDopaServer({
     mcpUrlToken: token,
