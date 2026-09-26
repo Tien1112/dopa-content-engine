@@ -9,8 +9,11 @@ Voor beide taken moet in het Claude-account de persoonlijke connector
 
 ## Search Console en GA4
 
-Vervang in de bestaande taak meet-ID `G-HW7K5HC6R4` door
-`G-66V2CK347E`. De gekoppelde GA4-property blijft `553701814`.
+Laat meet-ID `G-HW7K5HC6R4` in de bestaande taak staan. Dit is het ID dat de
+publieke productie-storefront daadwerkelijk laadt. Airbyte leest op dit moment
+nog property `553701814`; die property hoort bij de oude Shopify-stream
+`G-66V2CK347E` en moet afzonderlijk naar de property van de live storefront
+worden omgezet voordat GA4-data in de Content Engine volledig betrouwbaar is.
 
 Voeg vlak voor het onderdeel `Versturen per e-mail` dit blok toe:
 
@@ -73,4 +76,3 @@ Een aangepaste taak geldt pas als aangesloten wanneer een echte run:
 3. de titel in een daaropvolgende `dopa_get_learning_snapshot` zichtbaar is;
 4. het rapport naar uitsluitend de twee vooraf goedgekeurde adressen is
    verzonden.
-

@@ -20,8 +20,13 @@ the live Content Hub database.
     query that returns data for Dopa's posts.
 - Google Analytics 4 to BigQuery: `04efd5ed-1cb2-443c-b0a2-9d677a7eda9d`
   - Dopa account: `407648609`
-  - Dopa webshop property: `553701814`
-  - Measurement ID: `G-66V2CK347E`
+  - Currently connected property: `553701814`
+  - Connected measurement ID: `G-66V2CK347E`
+  - Connected default URI: `https://dopa-dispatch-z887b.myshopify.com`
+  - Live `https://dopadispatch.shop` measurement ID: `G-HW7K5HC6R4`
+  - The Airbyte source is therefore still connected to the old Shopify stream;
+    move it to the GA4 property that owns the live measurement ID before using
+    it as evidence for campaign decisions.
   - The Airbyte service account has GA4 Viewer access and the first sync was
     started on 2026-09-12.
   - The measurement tag is installed on the production storefront. A real visit
@@ -57,8 +62,10 @@ the live Content Hub database.
   Dopa MCP and verify that a later learning snapshot contains a real task result.
   Keep raw GA4 and Search Console ingestion in Airbyte; store only the task's
   derived findings or additional sourced research through the MCP.
-- Google Analytics 4: verify that a real production visit reaches both GA4 and
-  BigQuery.
+- Google Analytics 4: identify the property that owns live measurement ID
+  `G-HW7K5HC6R4`, grant the Airbyte service account Viewer access, replace the
+  old property in the Airbyte source, and verify that one consented production
+  visit reaches both GA4 and BigQuery.
 - Search Console: monitor the next scheduled one-stream sync. The first complete
   live run is proven, but the optimized configuration still needs its next
   scheduled-run observation.
