@@ -43,6 +43,10 @@ const gateways = {
     variables["dopa-claude-mcp"].DOPA_CLAUDE_CONNECTOR_TOKEN,
   ),
   mcp: await publicHealth(variables["dopa-claude-mcp"].RAILWAY_PUBLIC_DOMAIN),
+  metaAccess: await metaAccessHealth(
+    publishVars.DOPA_META_ACCESS_TOKEN,
+    publishVars.DOPA_META_CONFIG_JSON,
+  ),
 };
 
 const services = Object.fromEntries(
@@ -102,6 +106,30 @@ async function publicHealth(domain) {
     const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(15_000) });
     const body = await response.json().catch(() => ({}));
     return { ok: response.ok && body?.ok === true, status: response.status };
+  } catch (error) {
+    return { ok: false, status: error instanceof Error ? error.name : "request_failed" };
+  }
+}
+
+async function metaAccessHealth(accessToken, configJson) {
+  if (!hasValue(accessToken) || !hasValue(configJson)) return { ok: false, status: "missing_config" };
+  try {
+    const config = JSON.parse(configJson);
+    const version = String(config.graph_api_version ?? "v25.0").replace(/^v?/, "v");
+    const pageId = config.accounts?.["dopa-facebook"]?.facebook_page_id;
+    if (!hasValue(pageId)) return { ok: false, status: "missing_page_id" };
+    const response = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(pageId)}?fields=id`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = await response.json().catch(() => ({}));
+    return {
+      ok: response.ok && body?.id === pageId,
+      status: response.status,
+      errorCode: body?.error?.code ?? null,
+      errorSubcode: body?.error?.error_subcode ?? null,
+    };
   } catch (error) {
     return { ok: false, status: error instanceof Error ? error.name : "request_failed" };
   }

@@ -65,6 +65,9 @@ the live Content Hub database.
 - Facebook organic metrics: the Page post feed is live, but the post-insights
   stream currently returns zero records. Do not treat reach, clicks or reactions
   as verified until at least one real metric row is visible in BigQuery.
+  On 2026-09-26 the shared Meta Page token was proven expired (Graph API error
+  190, subcode 463; expiry 2026-09-14). Re-authorize Meta before debugging the
+  insight metric set or claiming that organic collection and publishing are live.
 - Etsy: the approval-gated publisher, declarative Airbyte definition and
   BigQuery normalization are implemented. Etsy temporarily took the Dopa shop
   offline because the submitted company details did not exactly match the KvK
