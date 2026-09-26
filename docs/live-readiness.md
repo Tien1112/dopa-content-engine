@@ -51,6 +51,12 @@ the live Content Hub database.
 
 ## Account work still required
 
+- Claude scheduled tasks: two existing Dopa tasks collect information, including
+  one task that uses Google Console, but they do not yet persist their output in
+  the Content Machine. Update both prompts to store dated findings through the
+  Dopa MCP and verify that a later learning snapshot contains a real task result.
+  Keep raw GA4 and Search Console ingestion in Airbyte; store only the task's
+  derived findings or additional sourced research through the MCP.
 - Google Analytics 4: verify that a real production visit reaches both GA4 and
   BigQuery.
 - Search Console: monitor the next scheduled one-stream sync. The first complete

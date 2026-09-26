@@ -16,6 +16,25 @@ totals, measured winners and current research signals. Claude combines those
 two inputs into draft product and content proposals. It must name evidence and
 uncertainty, and it cannot approve, schedule or publish its own proposals.
 
+## Existing Claude scheduled tasks
+
+Dopa already has two scheduled tasks in Claude that collect information. One
+of them uses Google Console. These tasks are upstream strategy inputs, but their
+results are not yet persisted in the Content Machine automatically.
+
+Do not create a second raw Google-data route for the Google task. GA4 and Google
+Search Console remain the auditable source-of-truth routes through Airbyte,
+BigQuery and the Hub. A scheduled Claude task may add derived observations,
+explanations or external research by calling `dopa_record_research_signals`
+with dated source URLs. User-provided notes or transcripts belong in
+`dopa_record_user_input`. After writing new evidence, the task must read
+`dopa_get_learning_snapshot` before evaluating campaigns or proposing new ones.
+
+Both existing task prompts still need to be reviewed and updated with this
+write-then-read sequence. Until a real scheduled run has stored evidence that
+appears in a later learning snapshot, the scheduled-task integration is not
+considered live.
+
 Airbyte Cloud requires an Application client ID and secret. Access tokens are
 short-lived, so the client fetches a new token before control-plane calls.
 
