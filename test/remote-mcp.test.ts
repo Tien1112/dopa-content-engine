@@ -8,16 +8,18 @@ import { buildRemoteDopaServer, createRemoteMcpApp, remoteMcpUrl } from "../src/
 
 const token = "0123456789abcdef0123456789abcdef";
 const gatewayToken = "abcdef0123456789abcdef0123456789";
+const principal = { urlToken: token, email: "martienvanloo@gmail.com" };
 
 test("remote MCP hides the endpoint and exposes safe Dopa tools", async () => {
   const gatewayCalls: unknown[] = [];
   const fetchImpl: typeof fetch = async (_input, init) => {
     assert.equal(new Headers(init?.headers).get("x-dopa-claude-token"), gatewayToken);
+    assert.equal(new Headers(init?.headers).get("x-dopa-actor-email"), principal.email);
     const body = JSON.parse(String(init?.body ?? "{}")) as { action?: string };
     gatewayCalls.push(body);
     return Response.json({ ok: true, action: body.action });
   };
-  const app = createRemoteMcpApp({ mcpUrlToken: token, gatewayToken, gatewayUrl: "https://gateway.example/api", fetchImpl });
+  const app = createRemoteMcpApp({ principals: [principal], gatewayToken, gatewayUrl: "https://gateway.example/api", fetchImpl });
   const httpServer = app.listen(0, "127.0.0.1");
   await once(httpServer, "listening");
   const port = (httpServer.address() as AddressInfo).port;
@@ -50,12 +52,12 @@ test("remote MCP hides the endpoint and exposes safe Dopa tools", async () => {
 });
 
 test("remote MCP requires a long secret", () => {
-  assert.throws(() => createRemoteMcpApp({ mcpUrlToken: "short", gatewayToken }), /at least 32/);
+  assert.throws(() => createRemoteMcpApp({ principals: [{ ...principal, urlToken: "short" }], gatewayToken }), /at least 32/);
 });
 
 test("remote MCP rejects unknown Host headers", async () => {
   const app = createRemoteMcpApp({
-    mcpUrlToken: token,
+    principals: [principal],
     gatewayToken,
     allowedHosts: ["mcp.example"],
   });
@@ -75,11 +77,11 @@ test("remote MCP rejects unknown Host headers", async () => {
 
 test("30-days prompt explicitly routes through the installed Last30Days skill", async () => {
   const server = buildRemoteDopaServer({
-    mcpUrlToken: token,
+    principals: [principal],
     gatewayToken,
     gatewayUrl: "https://gateway.example/api",
     fetchImpl: async () => Response.json({ ok: true }),
-  });
+  }, principal);
 
   // The SDK stores registered prompts internally; this assertion protects the
   // user-facing integration wording without requiring a local listening port.

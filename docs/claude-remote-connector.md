@@ -33,15 +33,18 @@ Maak naast de render-worker een tweede Railway-service uit dezelfde GitHub-repo.
    kiest `Dockerfile.mcp` en de `/health`-controle, zonder de bestaande
    render-workerconfiguratie te veranderen.
 3. Voeg deze privévariabelen toe:
-   - `DOPA_MCP_URL_TOKEN`: een willekeurig geheim van minimaal 32 tekens. Dit
-     komt alleen als onraadbare component in de Claude-connector-URL.
+   - `DOPA_MCP_PRINCIPALS_JSON`: een JSON-array met per gebruiker een eigen
+     willekeurig geheim en het e-mailadres van diens Claude-account, bijvoorbeeld
+     `[{"urlToken":"<minimaal-32-tekens>","email":"naam@example.com"}]`.
+     Deel nooit dezelfde token of URL met twee personen.
    - `DOPA_CLAUDE_CONNECTOR_TOKEN`: een ander geheim van minimaal 32 tekens.
      Dezelfde waarde moet als Lovable-secret bestaan.
    - `DOPA_CLAUDE_GATEWAY_URL=https://dopa-content-hub.lovable.app/api/public/claude-connector`
 4. Deploy en genereer een publiek Railway-domein.
-5. De MCP-URL is `https://<railway-domein>/mcp/<DOPA_MCP_URL_TOKEN>`.
+5. De persoonlijke MCP-URL is
+   `https://<railway-domein>/mcp/<persoonlijke-urlToken>`.
 
-De twee geheimen zijn expres verschillend. Een eventueel uitgelekte
+De persoonlijke URL-token en het gatewaysecret zijn expres verschillend. Een eventueel uitgelekte
 connector-URL geeft daardoor geen directe toegang tot de interne Lovable-route.
 Zet geen van beide waarden in GitHub, documentatie of chatberichten.
 
@@ -52,9 +55,9 @@ Zet geen van beide waarden in GitHub, documentatie of chatberichten.
 2. Publiceer de Lovable-app opnieuw; een nieuw secret geldt pas na publish.
 3. De vaste gebruikerslink blijft `https://dopa-content-hub.lovable.app`.
 
-Margot is als reviewer uitgenodigd via `margot@bundleit.app`. Ze logt op
-de vaste link in met de eenmalige e-maillink en heeft geen Lovable-editoraccount
-nodig.
+De e-mail in `DOPA_MCP_PRINCIPALS_JSON` moet ook als gebruiker voor de
+Dopa-workspace zijn uitgenodigd. Daardoor worden rechten server-side gecontroleerd
+en worden wijzigingen onder het echte e-mailadres vastgelegd.
 
 ## Claude of ChatGPT
 

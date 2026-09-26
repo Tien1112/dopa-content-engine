@@ -30,8 +30,8 @@ const plannedPostSchema = z.object({
 }).strict();
 
 export interface RemoteMcpOptions {
-  /** Secret embedded only in the Claude connector URL. */
-  mcpUrlToken: string;
+  /** Personal secrets embedded only in each user's Claude connector URL. */
+  principals: RemoteMcpPrincipal[];
   /** Separate server-to-server secret shared only by Railway and Lovable. */
   gatewayToken: string;
   gatewayUrl?: string;
@@ -40,8 +40,13 @@ export interface RemoteMcpOptions {
   allowedHosts?: string[];
 }
 
-export function buildRemoteDopaServer(options: RemoteMcpOptions): McpServer {
-  const gateway = new DopaGateway(options);
+export interface RemoteMcpPrincipal {
+  urlToken: string;
+  email: string;
+}
+
+export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: RemoteMcpPrincipal): McpServer {
+  const gateway = new DopaGateway(options, principal);
   const server = new McpServer(
     { name: "dopa-content-engine", version: "0.2.0" },
     {
@@ -208,12 +213,13 @@ export function createRemoteMcpApp(options: RemoteMcpOptions) {
 
   app.post("/mcp/:token", async (request: Request, response: Response) => {
     const pathToken = Array.isArray(request.params.token) ? "" : (request.params.token ?? "");
-    if (!sameSecret(pathToken, options.mcpUrlToken)) {
+    const principal = options.principals.find((candidate) => sameSecret(pathToken, candidate.urlToken));
+    if (!principal) {
       response.status(404).end();
       return;
     }
 
-    const server = buildRemoteDopaServer(options);
+    const server = buildRemoteDopaServer(options, principal);
     const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
     try {
       // SDK 1.30's Node wrapper and core Transport differ only in optional
@@ -251,7 +257,7 @@ class DopaGateway {
   private readonly url: string;
   private readonly fetchImpl: typeof fetch;
 
-  constructor(private readonly options: RemoteMcpOptions) {
+  constructor(private readonly options: RemoteMcpOptions, private readonly principal: RemoteMcpPrincipal) {
     validateOptions(options);
     this.url = options.gatewayUrl ?? DEFAULT_GATEWAY;
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -263,6 +269,7 @@ class DopaGateway {
       headers: {
         "content-type": "application/json",
         "x-dopa-claude-token": this.options.gatewayToken,
+        "x-dopa-actor-email": this.principal.email,
       },
       body: JSON.stringify({ action, ...data }),
       signal: AbortSignal.timeout(20_000),
@@ -274,7 +281,16 @@ class DopaGateway {
 }
 
 function validateOptions(options: RemoteMcpOptions): void {
-  if (options.mcpUrlToken.length < 32) throw new Error("DOPA_MCP_URL_TOKEN must contain at least 32 characters");
+  if (options.principals.length === 0) throw new Error("At least one MCP principal is required");
+  const emails = new Set<string>();
+  for (const principal of options.principals) {
+    if (principal.urlToken.length < 32) throw new Error("Every MCP URL token must contain at least 32 characters");
+    const email = principal.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Every MCP principal needs a valid email address");
+    if (emails.has(email)) throw new Error("MCP principal email addresses must be unique");
+    emails.add(email);
+    principal.email = email;
+  }
   if (options.gatewayToken.length < 32) throw new Error("DOPA_CLAUDE_CONNECTOR_TOKEN must contain at least 32 characters");
   if (options.gatewayUrl) {
     const url = new URL(options.gatewayUrl);
