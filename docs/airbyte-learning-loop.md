@@ -110,8 +110,9 @@ Voor Dopa lopen Google-resultaten via Airbyte en niet via tokens in de Hub.
 De huidige GA4-bron voor property `553701814` repliceert dagelijks via Airbyte
 naar BigQuery, maar die property hoort bij de oude Shopify-stream met meet-ID
 `G-66V2CK347E`. De publieke productie-storefront laadt meet-ID
-`G-HW7K5HC6R4`. De Airbyte-bron moet daarom nog naar de property van die live
-stream worden omgezet. Google Search Console
+`G-HW7K5HC6R4`. Deze live stream is `15836226186` binnen property `555700371`
+van account `409307873`. De Airbyte-bron moet daarom nog naar die property
+worden omgezet. Google Search Console
 repliceert de property `sc-domain:dopadispatch.shop` dagelijks via verbinding
 `4aad56c7-e83c-427c-86a8-42efac0515f8`. De overige ondersteunde Google-bronnen
 zijn Google Ads en Google Merchant Center.

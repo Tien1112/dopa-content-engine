@@ -14,6 +14,8 @@ publieke productie-storefront daadwerkelijk laadt. Airbyte leest op dit moment
 nog property `553701814`; die property hoort bij de oude Shopify-stream
 `G-66V2CK347E` en moet afzonderlijk naar de property van de live storefront
 worden omgezet voordat GA4-data in de Content Engine volledig betrouwbaar is.
+De juiste live property is `555700371`, onder account `409307873`, met
+webstream `15836226186`.
 
 Voeg vlak voor het onderdeel `Versturen per e-mail` dit blok toe:
 
