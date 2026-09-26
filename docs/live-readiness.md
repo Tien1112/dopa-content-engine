@@ -75,6 +75,13 @@ the live Content Hub database.
   On 2026-09-26 the shared Meta Page token was proven expired (Graph API error
   190, subcode 463; expiry 2026-09-14). Re-authorize Meta before debugging the
   insight metric set or claiming that organic collection and publishing are live.
+- Pinterest: app `Dopa Content Hub` (`1610840`) is visible in Pinterest
+  Developers, but the Trial access request is still pending. The configured
+  OAuth client currently returns HTTP 401 and the live Hub correctly reports
+  `needs_config`. Do not queue or claim a live Pin until Pinterest approves the
+  app, OAuth succeeds, the configured board can be read, and one exact approved
+  test Pin returns a real Pinterest Pin ID. Only after that test should its
+  analytics be traced through Airbyte and BigQuery back into the Hub.
 - Etsy: the approval-gated publisher, declarative Airbyte definition and
   BigQuery normalization are implemented. Etsy temporarily took the Dopa shop
   offline because the submitted company details did not exactly match the KvK
