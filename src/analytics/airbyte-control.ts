@@ -1,6 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { configuredConnections, runAirbyteWorker, type AirbyteRouteProgress } from "./airbyte-worker.js";
+import { configuredConnections, type AirbyteRouteProgress } from "./airbyte-worker.js";
+import { runDataSyncWorker } from "./data-sync-worker.js";
 
 const CONFIRMATION = "SYNC NU ALLE DOPA DATA";
 type ControlRun = {
@@ -38,9 +39,7 @@ export function listenAirbyteControl(port = Number(process.env.AIRBYTE_CONTROL_P
       };
       current = run;
       history.set(run.runId, run);
-      void runAirbyteWorker({
-        once: true,
-        importOnly: false,
+      void runDataSyncWorker({
         connections,
         onProgress: (progress) => {
           const index = run.routes.findIndex((route) => route.name === progress.name);

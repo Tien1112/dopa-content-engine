@@ -80,7 +80,7 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: Remo
   if (airbyte) {
     server.registerTool("dopa_start_manual_data_sync", {
       title: "Start one manual Dopa data sync",
-      description: `Start selected allowlisted Dopa Airbyte connections and import their completed results into the Hub. Omit sources to run all connections. Use sources to retry only failed connections without repeating successful paid syncs. A run may consume Airbyte credits. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
+      description: `Start selected allowlisted Dopa data sources and import their completed results into the Hub. Facebook organic reads Meta directly; remaining sources may still use Airbyte and consume credits. Omit sources to run all connections. Use sources to retry only failed connections. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
       inputSchema: {
         confirmation: z.literal(DATA_SYNC_CONFIRMATION),
         sources: z.array(dataSyncSourceSchema).min(1).max(7).optional(),
@@ -89,7 +89,7 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: Remo
 
     server.registerTool("dopa_get_manual_data_sync_status", {
       title: "Check one manual Dopa data sync",
-      description: "Read per-source progress for a manual Dopa sync. This does not start another sync or consume additional Airbyte credits.",
+      description: "Read per-source progress for a manual Dopa sync. This does not start another sync or consume additional credits.",
       inputSchema: { run_id: z.string().uuid() },
     }, async ({ run_id }) => toolResult(await airbyte.status(run_id)));
   }
