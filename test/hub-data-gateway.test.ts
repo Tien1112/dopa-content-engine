@@ -56,3 +56,30 @@ test("repeated Airbyte snapshots are sent only once per normalized daily key", a
   assert.equal((batches[0]?.records as Array<{ reach: number }>)[0]?.reach, 3);
   assert.equal(dedupePerformanceRecords([duplicate, duplicate]).length, 1);
 });
+
+test("commerce attribution replaces one complete source window", async () => {
+  let request: Record<string, unknown> | undefined;
+  const fakeFetch = async (_input: string | URL | Request, init: RequestInit = {}) => {
+    request = JSON.parse(String(init.body)) as Record<string, unknown>;
+    return Response.json({ received: 1 });
+  };
+  const gateway = new HubDataGateway("https://dopa.example/api/public/data-worker", token, fakeFetch as typeof fetch);
+  const received = await gateway.replaceAttribution(
+    "shopify",
+    "bce72712-f24e-4f0c-a294-1675e13c2c5d",
+    "8ee1eb44-ded4-4c2a-97c7-b0bf1ea08857",
+    { period_start: "2026-09-10", period_end: "2026-10-15" },
+    [{
+      period_start: "2026-10-14",
+      period_end: "2026-10-14",
+      channel: "instagram",
+      tracking_code: "dopa-a",
+      attributed_orders: 1,
+      attributed_revenue_cents: 1299,
+      model: "utm_last_touch",
+    }],
+  );
+  assert.equal(received, 1);
+  assert.equal(request?.action, "replace_attribution");
+  assert.equal(request?.provider, "shopify");
+});

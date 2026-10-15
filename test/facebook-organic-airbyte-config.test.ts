@@ -25,3 +25,10 @@ test("canonical performance model includes organic Facebook data", () => {
   assert.match(model, /facebook_feed_organic/);
   assert.match(model, /UNION ALL SELECT \* FROM facebook_organic/);
 });
+
+test("canonical performance model keeps commerce authoritative and orders unique", () => {
+  assert.match(model, /CONCAT\('shopify-order:', CAST\(id AS STRING\)\) AS external_post_id/);
+  assert.match(model, /google_analytics_funnel AS/);
+  assert.match(model, /LOWER\(eventName\) IN \('view_item', 'add_to_cart', 'begin_checkout', 'purchase', 'in_app_purchase'\)/);
+  assert.doesNotMatch(model, /google_analytics_purchases AS/);
+});

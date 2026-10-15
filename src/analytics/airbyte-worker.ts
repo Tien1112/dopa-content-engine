@@ -1,5 +1,11 @@
 import { AirbyteClient, type AirbyteJobStatus } from "./airbyte.js";
-import { HubDataGateway, type DataGatewayCompletionStatus, type DataProvider } from "./hub-data-gateway.js";
+import {
+  HubDataGateway,
+  type AttributionRecord,
+  type DataGatewayCompletionStatus,
+  type DataProvider,
+  type PerformanceRecord,
+} from "./hub-data-gateway.js";
 import { BigQueryPerformanceReader, type PerformanceScope } from "./bigquery.js";
 
 export type AirbyteImport = { provider: DataProvider; scope: PerformanceScope };
@@ -31,8 +37,18 @@ export async function runAirbyteWorker(): Promise<void> {
           continue;
         }
         for (const { importConfig, runId } of runs) {
-          const rows = reader ? await reader.read(importConfig.provider, 35, importConfig.scope) : [];
+          const days = 35;
+          const rows = reader ? await reader.read(importConfig.provider, days, importConfig.scope) : [];
           const loaded = reader ? await gateway.upsert(importConfig.provider, route.connectionId, runId, rows) : 0;
+          if (reader && (importConfig.provider === "shopify" || importConfig.provider === "etsy")) {
+            await gateway.replaceAttribution(
+              importConfig.provider,
+              route.connectionId,
+              runId,
+              attributionWindow(days),
+              attributionRecords(importConfig.provider, rows),
+            );
+          }
           await gateway.complete(runId, "succeeded", undefined, loaded);
         }
       } catch (error) {
@@ -93,6 +109,61 @@ export function configuredConnections(raw = required("DOPA_AIRBYTE_CONNECTIONS_J
     });
     return { name: candidate.name.trim(), connectionId: connectionId(candidate.connection_id), imports };
   });
+}
+
+/** Build deterministic daily last-touch rows from authoritative commerce data. */
+export function attributionRecords(
+  provider: Extract<DataProvider, "shopify" | "etsy">,
+  rows: readonly PerformanceRecord[],
+): AttributionRecord[] {
+  const grouped = new Map<string, AttributionRecord>();
+  for (const row of rows) {
+    const orders = row.orders ?? 0;
+    const revenue = row.revenue_cents ?? 0;
+    if (orders === 0 && revenue === 0) continue;
+    const channel = provider === "etsy" ? "etsy" : normalizeUtmChannel(row.placement_key);
+    if (!channel) continue;
+    const model = provider === "etsy" ? "marketplace_direct" : "utm_last_touch";
+    const key = [row.metric_date, channel, row.tracking_code ?? "", model].join("|");
+    const current = grouped.get(key) ?? {
+      period_start: row.metric_date,
+      period_end: row.metric_date,
+      channel,
+      ...(row.tracking_code ? { tracking_code: row.tracking_code } : {}),
+      attributed_orders: 0,
+      attributed_revenue_cents: 0,
+      model,
+    };
+    current.attributed_orders += orders;
+    current.attributed_revenue_cents += revenue;
+    grouped.set(key, current);
+  }
+  return [...grouped.values()];
+}
+
+export function attributionWindow(days: number, now = new Date()): { period_start: string; period_end: string } {
+  const end = amsterdamDate(now);
+  const start = new Date(`${end}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - days);
+  return { period_start: start.toISOString().slice(0, 10), period_end: end };
+}
+
+function normalizeUtmChannel(value: string | undefined): string | null {
+  if (!value || value === "shopify_order") return null;
+  let decoded = value;
+  try { decoded = decodeURIComponent(value.replace(/\+/g, " ")); } catch { /* keep the raw UTM source */ }
+  const normalized = decoded.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
+  const aliases: Record<string, string> = { ig: "instagram", insta: "instagram", fb: "facebook", pin: "pinterest" };
+  return (aliases[normalized] ?? normalized) || null;
+}
+
+function amsterdamDate(value: Date): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
 }
 
 function connectionId(value: unknown): string {

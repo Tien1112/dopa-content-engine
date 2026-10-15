@@ -31,6 +31,16 @@ export type PerformanceRecord = {
   revenue_cents?: number;
 };
 
+export type AttributionRecord = {
+  period_start: string;
+  period_end: string;
+  channel: string;
+  tracking_code?: string;
+  attributed_orders: number;
+  attributed_revenue_cents: number;
+  model: "utm_last_touch" | "marketplace_direct";
+};
+
 export class HubDataGateway {
   constructor(private readonly endpoint: string, private readonly token: string, private readonly fetchImpl: typeof fetch = fetch) {
     const url = new URL(endpoint);
@@ -57,6 +67,23 @@ export class HubDataGateway {
       loaded += value.received;
     }
     return loaded;
+  }
+  async replaceAttribution(
+    provider: DataProvider,
+    connectionRef: string,
+    runId: string,
+    window: { period_start: string; period_end: string },
+    records: readonly AttributionRecord[],
+  ): Promise<number> {
+    const value = await this.action<{ received: number }>({
+      action: "replace_attribution",
+      provider,
+      connection_ref: connectionRef,
+      run_id: runId,
+      ...window,
+      records,
+    });
+    return value.received;
   }
   private async action<T>(body: Record<string, unknown>): Promise<T> {
     const response = await this.fetchImpl(this.endpoint, { method: "POST", headers: { "content-type": "application/json", "x-dopa-data-worker-token": this.token }, body: JSON.stringify(body), redirect: "error" });
