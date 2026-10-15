@@ -89,7 +89,16 @@ export class HubDataGateway {
     const response = await this.fetchImpl(this.endpoint, { method: "POST", headers: { "content-type": "application/json", "x-dopa-data-worker-token": this.token }, body: JSON.stringify(body), redirect: "error" });
     const raw = await response.text();
     if (Buffer.byteLength(raw) > 1024 * 1024) throw new Error("Data gateway response exceeds 1 MB");
-    if (!response.ok) throw new Error(`Data gateway request failed (${response.status})`);
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const parsed = JSON.parse(raw) as { error?: unknown };
+        if (typeof parsed.error === "string") detail = safe(parsed.error).slice(0, 240);
+      } catch {
+        // The status remains useful when an upstream proxy did not return JSON.
+      }
+      throw new Error(`Data gateway request failed (${response.status})${detail ? `: ${detail}` : ""}`);
+    }
     try { return JSON.parse(raw) as T; } catch { throw new Error("Data gateway returned invalid JSON"); }
   }
 }

@@ -35,6 +35,16 @@ test("failed ingestion completion includes a bounded error", async () => {
   assert.equal(request?.error_text, "broken source");
 });
 
+test("gateway errors retain the bounded public server reason", async () => {
+  const fakeFetch = async () => Response.json({ error: "Ongeldige attributie-invoer" }, { status: 400 });
+  const gateway = new HubDataGateway("https://dopa.example/api/public/data-worker", token, fakeFetch as typeof fetch);
+
+  await assert.rejects(
+    () => gateway.health(),
+    /Data gateway request failed \(400\): Ongeldige attributie-invoer/,
+  );
+});
+
 test("repeated Airbyte snapshots are sent only once per normalized daily key", async () => {
   const batches: Array<Record<string, unknown>> = [];
   const fakeFetch = async (_input: string | URL | Request, init: RequestInit = {}) => {
