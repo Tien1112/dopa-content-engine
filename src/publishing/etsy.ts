@@ -19,6 +19,25 @@ export interface EtsyConfig {
 
 export interface EtsyReceipt { platform_id: string; platform_url?: string; draft_created: true }
 
+export function loadEtsyConfigFromEnvironment(): EtsyConfig {
+  const raw = process.env.DOPA_ETSY_CONFIG_JSON;
+  if (!raw) throw new Error("DOPA_ETSY_CONFIG_JSON is required");
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { throw new Error("DOPA_ETSY_CONFIG_JSON must contain valid JSON"); }
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid Etsy adapter config");
+  const parsed = value as EtsyConfig;
+  if (!parsed.accounts || typeof parsed.accounts !== "object") throw new Error("Invalid Etsy adapter config");
+  for (const [accountRef, account] of Object.entries(parsed.accounts)) {
+    if (!/^[a-z0-9][a-z0-9-]{0,99}$/.test(accountRef)) throw new Error(`Invalid Etsy account_ref: ${accountRef}`);
+    if (!account || !/^\d+$/.test(account.shop_id)) throw new Error(`Invalid Etsy shop_id for ${accountRef}`);
+    if (!/^[A-Z][A-Z0-9_]*$/.test(account.api_key_env)) throw new Error(`Invalid Etsy api_key_env for ${accountRef}`);
+    for (const name of [account.access_token_env, account.client_id_env, account.refresh_token_env]) {
+      if (name && !/^[A-Z][A-Z0-9_]*$/.test(name)) throw new Error(`Invalid Etsy credential environment name for ${accountRef}`);
+    }
+  }
+  return parsed;
+}
+
 interface EtsyPayload {
   price: number;
   quantity: number;

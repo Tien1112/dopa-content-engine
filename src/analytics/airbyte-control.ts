@@ -1,7 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { configuredConnections, type AirbyteRouteProgress } from "./airbyte-worker.js";
-import { runDataSyncWorker } from "./data-sync-worker.js";
+import type { AirbyteRouteProgress } from "./airbyte-worker.js";
+import { configuredDataSyncConnections, runDataSyncWorker } from "./data-sync-worker.js";
 
 const CONFIRMATION = "SYNC NU ALLE DOPA DATA";
 type ControlRun = {
@@ -112,7 +112,7 @@ function safe(value: string): string { return value.replace(/[\u0000-\u001f\u007
 function required(name: string): string { const value = process.env[name]; if (!value) throw new Error(`${name} is required`); return value; }
 
 function selectedConnections(raw: unknown) {
-  const connections = configuredConnections();
+  const connections = configuredDataSyncConnections();
   if (raw === undefined) return connections;
   if (!Array.isArray(raw) || raw.length < 1 || raw.length > connections.length || raw.some((value) => typeof value !== "string")) {
     throw new Error("sources must be a non-empty list of configured Dopa source names");

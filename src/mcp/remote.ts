@@ -10,7 +10,7 @@ const CONFIRMATION = "PLAN NU DEZE EXACTE VERSIE IN" as const;
 const DATA_SYNC_CONFIRMATION = "SYNC NU ALLE DOPA DATA" as const;
 const dataSyncSourceSchema = z.enum([
   "shopify", "meta_ads", "instagram_organic", "facebook_organic",
-  "pinterest", "google_analytics", "google_search_console",
+  "pinterest", "google_analytics", "google_search_console", "etsy",
 ]);
 
 const channelSchema = z.enum(["instagram", "facebook", "pinterest", "story"]);
@@ -80,10 +80,10 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: Remo
   if (airbyte) {
     server.registerTool("dopa_start_manual_data_sync", {
       title: "Start one manual Dopa data sync",
-      description: `Start selected allowlisted Dopa data sources and import their completed results into the Hub. Facebook organic reads Meta directly; remaining sources may still use Airbyte and consume credits. Omit sources to run all connections. Use sources to retry only failed connections. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
+      description: `Start selected allowlisted Dopa data sources and import their completed results into the Hub. Facebook organic and Etsy read their official APIs directly; remaining sources may still use Airbyte and consume credits. Omit sources to run all connections. Use sources to retry only failed connections. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
       inputSchema: {
         confirmation: z.literal(DATA_SYNC_CONFIRMATION),
-        sources: z.array(dataSyncSourceSchema).min(1).max(7).optional(),
+        sources: z.array(dataSyncSourceSchema).min(1).max(8).optional(),
       },
     }, async ({ confirmation, sources }) => toolResult(await airbyte.start(confirmation, sources)));
 
