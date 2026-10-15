@@ -66,6 +66,7 @@ function contentTypeFor(placement: HubMetaPublishJob["placement_key"]): Publishi
 
 function withTracking(value: string, trackingCode: string | null): string {
   const url = new URL(value);
+  if (trackingCode && !url.searchParams.has("utm_content")) url.searchParams.set("utm_content", trackingCode);
   if (trackingCode && !url.searchParams.has("dopa_content")) url.searchParams.set("dopa_content", trackingCode);
   return url.toString();
 }

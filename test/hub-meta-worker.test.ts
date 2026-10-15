@@ -67,6 +67,7 @@ test("Hub job maps only proven Meta placements and keeps the signed asset", () =
   assert.equal(item.content_type, "feed_post");
   assert.equal(item.account_ref, "dopa-instagram");
   assert.equal(item.media[0]?.public_url, "https://storage.example/signed-design.png");
+  assert.match(item.copy.destination_url ?? "", /utm_content=dopa-123/);
   assert.match(item.copy.destination_url ?? "", /dopa_content=dopa-123/);
 
   const reel = toContentPlanItem(job({ placement_key: "instagram_reel", asset: { ...job().asset, mime_type: "video/mp4", height: 1920 } }), { instagram: "dopa-instagram", facebook: "dopa-facebook" });
