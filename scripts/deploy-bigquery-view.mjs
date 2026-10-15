@@ -13,8 +13,12 @@ try {
 }
 if (!account.client_email || !account.private_key) throw new Error("BigQuery service account is incomplete");
 
-const query = await readFile(sqlPath, "utf8");
 const token = await accessToken(account);
+let query = await readFile(sqlPath, "utf8");
+if (!(await tableExists(token, "dopa_airbyte", "etsy_shop_receipts"))) {
+  query = withoutEtsyOrders(query);
+  console.warn("Etsy receipt table is not available yet; deploying the view without Etsy rows.");
+}
 const response = await fetch(
   `https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(projectId)}/queries`,
   {
@@ -31,6 +35,44 @@ if (!response.ok || value.errors?.length) {
 }
 if (value.jobComplete === false) throw new Error("BigQuery deployment did not finish within 30 seconds");
 console.log("BigQuery content performance view deployed successfully.");
+
+async function tableExists(accessToken, datasetId, tableId) {
+  const response = await fetch(
+    `https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(projectId)}/datasets/${encodeURIComponent(datasetId)}/tables/${encodeURIComponent(tableId)}`,
+    { headers: { authorization: `Bearer ${accessToken}` }, redirect: "error" },
+  );
+  if (response.status === 404) return false;
+  if (!response.ok) throw new Error(`BigQuery table check failed (${response.status})`);
+  return true;
+}
+
+function withoutEtsyOrders(sql) {
+  const fallback = `etsy_orders AS (
+  SELECT
+    CAST(NULL AS STRING) AS provider,
+    CAST(NULL AS DATE) AS metric_date,
+    CAST(NULL AS STRING) AS placement_key,
+    CAST(NULL AS STRING) AS external_post_id,
+    CAST(NULL AS STRING) AS tracking_code,
+    CAST(NULL AS STRING) AS product_ref,
+    CAST(NULL AS INT64) AS impressions,
+    CAST(NULL AS INT64) AS reach,
+    CAST(NULL AS INT64) AS engagements,
+    CAST(NULL AS INT64) AS saves,
+    CAST(NULL AS INT64) AS clicks,
+    CAST(NULL AS INT64) AS video_views,
+    CAST(NULL AS INT64) AS ad_spend_cents,
+    CAST(NULL AS INT64) AS orders,
+    CAST(NULL AS INT64) AS revenue_cents
+  FROM (SELECT 1)
+  WHERE FALSE
+)
+
+SELECT * FROM meta_paid`;
+  const marker = /etsy_orders AS \([\s\S]*?\n\)\n\nSELECT \* FROM meta_paid/;
+  if (!marker.test(sql)) throw new Error("Etsy CTE could not be isolated for the temporary fallback");
+  return sql.replace(marker, fallback);
+}
 
 async function accessToken(serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
