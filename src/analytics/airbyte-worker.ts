@@ -18,23 +18,26 @@ export async function runAirbyteWorker(): Promise<void> {
   const reader = BigQueryPerformanceReader.fromEnvironment();
   await gateway.health();
   const once = process.env.AIRBYTE_ONCE === "1";
+  const importOnly = process.env.AIRBYTE_IMPORT_ONLY === "1";
   const interval = Math.max(60_000, Number(process.env.AIRBYTE_SYNC_INTERVAL_MS ?? 21_600_000));
   do {
     for (const route of connections) {
       const runs: Array<{ importConfig: AirbyteImport; runId: string }> = [];
       try {
-        const started = await client.triggerSync(route.connectionId);
+        const started = importOnly ? { jobId: 0 } : await client.triggerSync(route.connectionId);
         for (const importConfig of route.imports) {
           runs.push({ importConfig, runId: await gateway.start(importConfig.provider, route.connectionId, started.jobId) });
         }
-        const finished = await client.waitForJob(started.jobId);
-        if (finished.status !== "succeeded") {
-          await Promise.all(runs.map(({ runId }) => gateway.complete(
-            runId,
-            hubCompletionStatus(finished.status),
-            `Airbyte job ${finished.jobId} ended as ${finished.status}`,
-          )));
-          continue;
+        if (!importOnly) {
+          const finished = await client.waitForJob(started.jobId);
+          if (finished.status !== "succeeded") {
+            await Promise.all(runs.map(({ runId }) => gateway.complete(
+              runId,
+              hubCompletionStatus(finished.status),
+              `Airbyte job ${finished.jobId} ended as ${finished.status}`,
+            )));
+            continue;
+          }
         }
         for (const { importConfig, runId } of runs) {
           const days = 35;
