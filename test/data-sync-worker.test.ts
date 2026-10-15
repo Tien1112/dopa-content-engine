@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { configuredDataSyncConnections, isDirectEtsyRoute, isDirectFacebookRoute } from "../src/analytics/data-sync-worker.js";
+import { configuredDataSyncConnections, isDirectEtsyRoute, isDirectFacebookRoute, isDirectPinterestRoute } from "../src/analytics/data-sync-worker.js";
 
 test("only the dedicated Facebook organic route bypasses Airbyte", () => {
   assert.equal(isDirectFacebookRoute({
@@ -12,6 +12,19 @@ test("only the dedicated Facebook organic route bypasses Airbyte", () => {
     name: "meta_ads",
     connectionId: "8515892f-1372-4d1b-9b29-4b524c61a6f7",
     imports: [{ provider: "facebook", scope: "paid" }],
+  }), false);
+});
+
+test("the dedicated Pinterest route bypasses Airbyte", () => {
+  assert.equal(isDirectPinterestRoute({
+    name: "Dopa Pinterest",
+    connectionId: "42c55f45-ec30-4f72-a9ee-342f4f59f65b",
+    imports: [{ provider: "pinterest", scope: "all" }],
+  }), true);
+  assert.equal(isDirectPinterestRoute({
+    name: "Dopa Pinterest",
+    connectionId: "42c55f45-ec30-4f72-a9ee-342f4f59f65b",
+    imports: [{ provider: "pinterest", scope: "organic" }, { provider: "pinterest", scope: "paid" }],
   }), false);
 });
 
