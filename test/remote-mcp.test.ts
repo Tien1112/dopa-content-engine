@@ -109,13 +109,24 @@ test("remote MCP requires explicit credit confirmation before starting a manual 
     airbyteControlToken: "fedcba9876543210fedcba9876543210",
     fetchImpl,
   }, principal);
-  const tools = (server as unknown as { _registeredTools: Record<string, { handler: (args: Record<string, string>) => Promise<unknown> }> })._registeredTools;
+  const tools = (server as unknown as { _registeredTools: Record<string, { handler: (args: Record<string, unknown>) => Promise<unknown> }> })._registeredTools;
   assert.ok(tools.dopa_start_manual_data_sync);
   assert.ok(tools.dopa_get_manual_data_sync_status);
   await tools.dopa_start_manual_data_sync.handler({ confirmation: "SYNC NU ALLE DOPA DATA" });
+  await tools.dopa_start_manual_data_sync.handler({
+    confirmation: "SYNC NU ALLE DOPA DATA",
+    sources: ["facebook_organic", "pinterest", "google_analytics", "google_search_console"],
+  });
   assert.deepEqual(calls, [{
     url: "http://dopa-airbyte-bridge.railway.internal:8080/sync",
     authorization: "Bearer fedcba9876543210fedcba9876543210",
     body: JSON.stringify({ confirmation: "SYNC NU ALLE DOPA DATA" }),
+  }, {
+    url: "http://dopa-airbyte-bridge.railway.internal:8080/sync",
+    authorization: "Bearer fedcba9876543210fedcba9876543210",
+    body: JSON.stringify({
+      confirmation: "SYNC NU ALLE DOPA DATA",
+      sources: ["facebook_organic", "pinterest", "google_analytics", "google_search_console"],
+    }),
   }]);
 });

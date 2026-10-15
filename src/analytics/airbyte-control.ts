@@ -22,21 +22,26 @@ export function listenAirbyteControl(port = Number(process.env.AIRBYTE_CONTROL_P
     if (!authorized(request, token)) return send(response, 404, { error: "Not found" });
 
     if (request.url === "/sync" && request.method === "POST") {
-      const body = await readJson(request).catch(() => null) as { confirmation?: unknown } | null;
+      const body = await readJson(request).catch(() => null) as { confirmation?: unknown; sources?: unknown } | null;
       if (body?.confirmation !== CONFIRMATION) return send(response, 400, { error: `Confirmation must equal: ${CONFIRMATION}` });
       if (current?.status === "running") return send(response, 409, { error: "A Dopa data sync is already running", run: publicRun(current) });
+
+      let connections;
+      try { connections = selectedConnections(body.sources); }
+      catch (error) { return send(response, 400, { error: safe(error instanceof Error ? error.message : String(error)) }); }
 
       const run: ControlRun = {
         runId: randomUUID(),
         status: "running",
         startedAt: new Date().toISOString(),
-        routes: configuredConnections().map((route) => ({ name: route.name, status: "pending" })),
+        routes: connections.map((route) => ({ name: route.name, status: "pending" })),
       };
       current = run;
       history.set(run.runId, run);
       void runAirbyteWorker({
         once: true,
         importOnly: false,
+        connections,
         onProgress: (progress) => {
           const index = run.routes.findIndex((route) => route.name === progress.name);
           if (index >= 0) run.routes[index] = progress;
@@ -106,3 +111,22 @@ function send(response: ServerResponse, status: number, value: unknown) {
 
 function safe(value: string): string { return value.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 300); }
 function required(name: string): string { const value = process.env[name]; if (!value) throw new Error(`${name} is required`); return value; }
+
+function selectedConnections(raw: unknown) {
+  const connections = configuredConnections();
+  if (raw === undefined) return connections;
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > connections.length || raw.some((value) => typeof value !== "string")) {
+    throw new Error("sources must be a non-empty list of configured Dopa source names");
+  }
+  const requested = new Set(raw);
+  if (requested.size !== raw.length) throw new Error("sources must not contain duplicates");
+  const byKey = new Map(connections.map((connection) => [sourceKey(connection.name), connection]));
+  const selected = [...requested].map((name) => byKey.get(name));
+  const unknown = [...requested].filter((name) => !byKey.has(name));
+  if (unknown.length) throw new Error(`Unknown Dopa sync sources: ${unknown.join(", ")}`);
+  return selected.filter((connection) => connection !== undefined);
+}
+
+function sourceKey(name: string): string {
+  return name.trim().toLowerCase().replace(/^dopa[\s_-]+/, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}

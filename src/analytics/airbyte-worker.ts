@@ -21,13 +21,14 @@ export type AirbyteWorkerOptions = {
   once?: boolean;
   importOnly?: boolean;
   intervalMs?: number;
+  connections?: readonly AirbyteConnectionRoute[];
   onProgress?: (progress: AirbyteRouteProgress) => void;
 };
 
 export async function runAirbyteWorker(options: AirbyteWorkerOptions = {}): Promise<void> {
   const client = new AirbyteClient({ client_id_env: "DOPA_AIRBYTE_CLIENT_ID", client_secret_env: "DOPA_AIRBYTE_CLIENT_SECRET", ...(process.env.DOPA_AIRBYTE_API_URL ? { api_base_url: process.env.DOPA_AIRBYTE_API_URL } : {}) });
   const gateway = new HubDataGateway(required("DOPA_DATA_GATEWAY_URL"), required("DOPA_DATA_WORKER_TOKEN"));
-  const connections = configuredConnections();
+  const connections = options.connections ?? configuredConnections();
   const reader = BigQueryPerformanceReader.fromEnvironment();
   await gateway.health();
   const once = options.once ?? process.env.AIRBYTE_ONCE === "1";

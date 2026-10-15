@@ -8,6 +8,10 @@ import * as z from "zod";
 const DEFAULT_GATEWAY = "https://dopa-content-hub.lovable.app/api/public/claude-connector";
 const CONFIRMATION = "PLAN NU DEZE EXACTE VERSIE IN" as const;
 const DATA_SYNC_CONFIRMATION = "SYNC NU ALLE DOPA DATA" as const;
+const dataSyncSourceSchema = z.enum([
+  "shopify", "meta_ads", "instagram_organic", "facebook_organic",
+  "pinterest", "google_analytics", "google_search_console",
+]);
 
 const channelSchema = z.enum(["instagram", "facebook", "pinterest", "story"]);
 const placementSchema = z.enum([
@@ -76,9 +80,12 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: Remo
   if (airbyte) {
     server.registerTool("dopa_start_manual_data_sync", {
       title: "Start one manual Dopa data sync",
-      description: `Start the allowlisted Dopa Airbyte connections and import their completed results into the Hub. A run may consume Airbyte credits. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
-      inputSchema: { confirmation: z.literal(DATA_SYNC_CONFIRMATION) },
-    }, async ({ confirmation }) => toolResult(await airbyte.start(confirmation)));
+      description: `Start selected allowlisted Dopa Airbyte connections and import their completed results into the Hub. Omit sources to run all connections. Use sources to retry only failed connections without repeating successful paid syncs. A run may consume Airbyte credits. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
+      inputSchema: {
+        confirmation: z.literal(DATA_SYNC_CONFIRMATION),
+        sources: z.array(dataSyncSourceSchema).min(1).max(7).optional(),
+      },
+    }, async ({ confirmation, sources }) => toolResult(await airbyte.start(confirmation, sources)));
 
     server.registerTool("dopa_get_manual_data_sync_status", {
       title: "Check one manual Dopa data sync",
@@ -310,8 +317,11 @@ class DopaAirbyteControl {
     this.fetchImpl = fetchImpl ?? fetch;
   }
 
-  async start(confirmation: typeof DATA_SYNC_CONFIRMATION): Promise<unknown> {
-    return this.request("/sync", { method: "POST", body: JSON.stringify({ confirmation }) });
+  async start(confirmation: typeof DATA_SYNC_CONFIRMATION, sources?: z.infer<typeof dataSyncSourceSchema>[]): Promise<unknown> {
+    return this.request("/sync", {
+      method: "POST",
+      body: JSON.stringify({ confirmation, ...(sources ? { sources } : {}) }),
+    });
   }
 
   async status(runId: string): Promise<unknown> {
