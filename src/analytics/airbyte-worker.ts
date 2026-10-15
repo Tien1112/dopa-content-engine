@@ -10,21 +10,37 @@ import { BigQueryPerformanceReader, type PerformanceScope } from "./bigquery.js"
 
 export type AirbyteImport = { provider: DataProvider; scope: PerformanceScope };
 export type AirbyteConnectionRoute = { name: string; connectionId: string; imports: AirbyteImport[] };
+export type AirbyteRouteProgress = {
+  name: string;
+  status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+  jobId?: number;
+  rowsLoaded?: number;
+  error?: string;
+};
+export type AirbyteWorkerOptions = {
+  once?: boolean;
+  importOnly?: boolean;
+  intervalMs?: number;
+  onProgress?: (progress: AirbyteRouteProgress) => void;
+};
 
-export async function runAirbyteWorker(): Promise<void> {
+export async function runAirbyteWorker(options: AirbyteWorkerOptions = {}): Promise<void> {
   const client = new AirbyteClient({ client_id_env: "DOPA_AIRBYTE_CLIENT_ID", client_secret_env: "DOPA_AIRBYTE_CLIENT_SECRET", ...(process.env.DOPA_AIRBYTE_API_URL ? { api_base_url: process.env.DOPA_AIRBYTE_API_URL } : {}) });
   const gateway = new HubDataGateway(required("DOPA_DATA_GATEWAY_URL"), required("DOPA_DATA_WORKER_TOKEN"));
   const connections = configuredConnections();
   const reader = BigQueryPerformanceReader.fromEnvironment();
   await gateway.health();
-  const once = process.env.AIRBYTE_ONCE === "1";
-  const importOnly = process.env.AIRBYTE_IMPORT_ONLY === "1";
-  const interval = Math.max(60_000, Number(process.env.AIRBYTE_SYNC_INTERVAL_MS ?? 21_600_000));
+  const once = options.once ?? process.env.AIRBYTE_ONCE === "1";
+  const importOnly = options.importOnly ?? process.env.AIRBYTE_IMPORT_ONLY === "1";
+  const interval = Math.max(60_000, options.intervalMs ?? Number(process.env.AIRBYTE_SYNC_INTERVAL_MS ?? 21_600_000));
   do {
     for (const route of connections) {
       const runs: Array<{ importConfig: AirbyteImport; runId: string }> = [];
+      let jobId: number | undefined;
       try {
         const started = importOnly ? { jobId: 0 } : await client.triggerSync(route.connectionId);
+        jobId = started.jobId;
+        options.onProgress?.({ name: route.name, status: "running", jobId });
         for (const importConfig of route.imports) {
           runs.push({ importConfig, runId: await gateway.start(importConfig.provider, route.connectionId, started.jobId) });
         }
@@ -36,13 +52,21 @@ export async function runAirbyteWorker(): Promise<void> {
               hubCompletionStatus(finished.status),
               `Airbyte job ${finished.jobId} ended as ${finished.status}`,
             )));
+            options.onProgress?.({
+              name: route.name,
+              status: finished.status === "cancelled" ? "cancelled" : "failed",
+              jobId: finished.jobId,
+              error: `Airbyte job ended as ${finished.status}`,
+            });
             continue;
           }
         }
+        let rowsLoaded = 0;
         for (const { importConfig, runId } of runs) {
           const days = 35;
           const rows = reader ? await reader.read(importConfig.provider, days, importConfig.scope) : [];
           const loaded = reader ? await gateway.upsert(importConfig.provider, route.connectionId, runId, rows) : 0;
+          rowsLoaded += loaded;
           if (reader && (importConfig.provider === "shopify" || importConfig.provider === "etsy")) {
             await gateway.replaceAttribution(
               importConfig.provider,
@@ -54,10 +78,12 @@ export async function runAirbyteWorker(): Promise<void> {
           }
           await gateway.complete(runId, "succeeded", undefined, loaded);
         }
+        options.onProgress?.({ name: route.name, status: "succeeded", jobId, rowsLoaded });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[airbyte:${route.name}] ${message}`);
         await Promise.all(runs.map(({ runId }) => gateway.complete(runId, "failed", message).catch(() => undefined)));
+        options.onProgress?.({ name: route.name, status: "failed", ...(jobId === undefined ? {} : { jobId }), error: message });
       }
     }
     if (once) return;

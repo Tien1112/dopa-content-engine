@@ -7,6 +7,7 @@ import * as z from "zod";
 
 const DEFAULT_GATEWAY = "https://dopa-content-hub.lovable.app/api/public/claude-connector";
 const CONFIRMATION = "PLAN NU DEZE EXACTE VERSIE IN" as const;
+const DATA_SYNC_CONFIRMATION = "SYNC NU ALLE DOPA DATA" as const;
 
 const channelSchema = z.enum(["instagram", "facebook", "pinterest", "story"]);
 const placementSchema = z.enum([
@@ -35,6 +36,9 @@ export interface RemoteMcpOptions {
   /** Separate server-to-server secret shared only by Railway and Lovable. */
   gatewayToken: string;
   gatewayUrl?: string;
+  /** Private Railway control endpoint; never exposed to the conversation client. */
+  airbyteControlUrl?: string;
+  airbyteControlToken?: string;
   fetchImpl?: typeof fetch;
   /** Hostnames accepted by the HTTP Host-header guard. */
   allowedHosts?: string[];
@@ -47,6 +51,9 @@ export interface RemoteMcpPrincipal {
 
 export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: RemoteMcpPrincipal): McpServer {
   const gateway = new DopaGateway(options, principal);
+  const airbyte = options.airbyteControlUrl && options.airbyteControlToken
+    ? new DopaAirbyteControl(options.airbyteControlUrl, options.airbyteControlToken, options.fetchImpl)
+    : null;
   const server = new McpServer(
     { name: "dopa-content-engine", version: "0.2.0" },
     {
@@ -65,6 +72,20 @@ export function buildRemoteDopaServer(options: RemoteMcpOptions, principal: Remo
     description: "Read measured performance, commerce attribution, 30-days research signals and user-supplied conversation context. Use it to propose strategies and campaign briefs, never to manufacture assets.",
     inputSchema: { days: z.number().int().min(1).max(90).default(30) },
   }, async ({ days }) => toolResult(await gateway.call("get_learning_snapshot", { days })));
+
+  if (airbyte) {
+    server.registerTool("dopa_start_manual_data_sync", {
+      title: "Start one manual Dopa data sync",
+      description: `Start the allowlisted Dopa Airbyte connections and import their completed results into the Hub. A run may consume Airbyte credits. Ask for explicit approval first; confirmation must exactly equal: ${DATA_SYNC_CONFIRMATION}`,
+      inputSchema: { confirmation: z.literal(DATA_SYNC_CONFIRMATION) },
+    }, async ({ confirmation }) => toolResult(await airbyte.start(confirmation)));
+
+    server.registerTool("dopa_get_manual_data_sync_status", {
+      title: "Check one manual Dopa data sync",
+      description: "Read per-source progress for a manual Dopa sync. This does not start another sync or consume additional Airbyte credits.",
+      inputSchema: { run_id: z.string().uuid() },
+    }, async ({ run_id }) => toolResult(await airbyte.status(run_id)));
+  }
 
   server.registerTool("dopa_record_user_input", {
     title: "Remember Dopa strategy input from this conversation",
@@ -280,6 +301,44 @@ class DopaGateway {
   }
 }
 
+class DopaAirbyteControl {
+  private readonly url: string;
+  private readonly fetchImpl: typeof fetch;
+
+  constructor(url: string, private readonly token: string, fetchImpl?: typeof fetch) {
+    this.url = url.replace(/\/$/, "");
+    this.fetchImpl = fetchImpl ?? fetch;
+  }
+
+  async start(confirmation: typeof DATA_SYNC_CONFIRMATION): Promise<unknown> {
+    return this.request("/sync", { method: "POST", body: JSON.stringify({ confirmation }) });
+  }
+
+  async status(runId: string): Promise<unknown> {
+    return this.request(`/sync/${encodeURIComponent(runId)}`, { method: "GET" });
+  }
+
+  private async request(path: string, init: RequestInit): Promise<unknown> {
+    const response = await this.fetchImpl(`${this.url}${path}`, {
+      ...init,
+      headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
+      redirect: "error",
+      signal: AbortSignal.timeout(20_000),
+    });
+    const text = await response.text();
+    if (Buffer.byteLength(text) > 1024 * 1024) throw new Error("Dopa sync response exceeds 1 MB");
+    let body: unknown;
+    try { body = JSON.parse(text); } catch { throw new Error("Dopa sync service returned invalid JSON"); }
+    if (!response.ok) {
+      const error = body && typeof body === "object" && !Array.isArray(body) && typeof (body as { error?: unknown }).error === "string"
+        ? (body as { error: string }).error.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 240)
+        : `Dopa sync request failed (${response.status})`;
+      throw new Error(error);
+    }
+    return body;
+  }
+}
+
 function validateOptions(options: RemoteMcpOptions): void {
   if (options.principals.length === 0) throw new Error("At least one MCP principal is required");
   const emails = new Set<string>();
@@ -297,6 +356,17 @@ function validateOptions(options: RemoteMcpOptions): void {
     if (url.protocol !== "https:" && url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
       throw new Error("DOPA_CLAUDE_GATEWAY_URL must use HTTPS");
     }
+  }
+  if ((options.airbyteControlUrl && !options.airbyteControlToken) || (!options.airbyteControlUrl && options.airbyteControlToken)) {
+    throw new Error("Dopa Airbyte control URL and token must be configured together");
+  }
+  if (options.airbyteControlUrl) {
+    const url = new URL(options.airbyteControlUrl);
+    const privateRailway = url.protocol === "http:" && url.hostname.endsWith(".railway.internal");
+    if (url.protocol !== "https:" && !privateRailway && url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
+      throw new Error("DOPA_AIRBYTE_CONTROL_URL must use HTTPS or Railway private networking");
+    }
+    if ((options.airbyteControlToken?.length ?? 0) < 32) throw new Error("DOPA_AIRBYTE_CONTROL_TOKEN must contain at least 32 characters");
   }
   for (const host of options.allowedHosts ?? []) {
     if (!host || host.includes("://") || host.includes("/") || host.includes(":")) {

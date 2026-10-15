@@ -90,3 +90,32 @@ test("30-days prompt explicitly routes through the installed Last30Days skill", 
   assert.ok(prompt);
   assert.match(JSON.stringify(prompt.callback({ research_question: "gift trends", market: "Netherlands" })), /Last30Days skill by mvanhorn/);
 });
+
+test("remote MCP requires explicit credit confirmation before starting a manual data sync", async () => {
+  const calls: Array<{ url: string; authorization: string | null; body: string }> = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    calls.push({
+      url: String(input),
+      authorization: new Headers(init?.headers).get("authorization"),
+      body: String(init?.body ?? ""),
+    });
+    return Response.json({ run: { run_id: "63ed327d-ecce-4af8-b31f-17fc8bd49ca1", status: "running" } }, { status: 202 });
+  };
+  const server = buildRemoteDopaServer({
+    principals: [principal],
+    gatewayToken,
+    gatewayUrl: "https://gateway.example/api",
+    airbyteControlUrl: "http://dopa-airbyte-bridge.railway.internal:8080",
+    airbyteControlToken: "fedcba9876543210fedcba9876543210",
+    fetchImpl,
+  }, principal);
+  const tools = (server as unknown as { _registeredTools: Record<string, { handler: (args: Record<string, string>) => Promise<unknown> }> })._registeredTools;
+  assert.ok(tools.dopa_start_manual_data_sync);
+  assert.ok(tools.dopa_get_manual_data_sync_status);
+  await tools.dopa_start_manual_data_sync.handler({ confirmation: "SYNC NU ALLE DOPA DATA" });
+  assert.deepEqual(calls, [{
+    url: "http://dopa-airbyte-bridge.railway.internal:8080/sync",
+    authorization: "Bearer fedcba9876543210fedcba9876543210",
+    body: JSON.stringify({ confirmation: "SYNC NU ALLE DOPA DATA" }),
+  }]);
+});

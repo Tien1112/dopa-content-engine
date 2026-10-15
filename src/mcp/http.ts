@@ -20,4 +20,6 @@ listenRemoteMcp({
   gatewayToken,
   allowedHosts: [publicDomain, "healthcheck.railway.app", "127.0.0.1", "localhost"],
   ...(process.env.DOPA_CLAUDE_GATEWAY_URL ? { gatewayUrl: process.env.DOPA_CLAUDE_GATEWAY_URL } : {}),
+  ...(process.env.DOPA_AIRBYTE_CONTROL_URL ? { airbyteControlUrl: process.env.DOPA_AIRBYTE_CONTROL_URL } : {}),
+  ...(process.env.DOPA_AIRBYTE_CONTROL_TOKEN ? { airbyteControlToken: process.env.DOPA_AIRBYTE_CONTROL_TOKEN } : {}),
 });
